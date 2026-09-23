@@ -3,9 +3,24 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Always load the backend .env explicitly
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+# Determine depot CSV path
+_csv_in_backend = os.path.join(BASE_DIR, "data", "ksrtc_depots.csv")
+_csv_in_root = os.path.join(BASE_DIR, "..", "data", "ksrtc_depots.csv")
+DEFAULT_DEPOT_CSV = _csv_in_backend if os.path.exists(_csv_in_backend) else _csv_in_root
+
+# Default database path (absolute path to backend/instance/app.db)
+_default_db_path = os.path.join(BASE_DIR, "instance", "app.db")
+_raw_db_url = os.getenv("DATABASE_URL")
+
+if not _raw_db_url or _raw_db_url.strip() in ("sqlite:///app.db", "sqlite:///:memory:"):
+    _db_uri = f"sqlite:///{_default_db_path}"
+else:
+    _db_uri = _raw_db_url
 
 
 class Config:
@@ -16,9 +31,7 @@ class Config:
     DEBUG = True
 
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'app.db')}"
-    )
+    SQLALCHEMY_DATABASE_URI = _db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT
@@ -39,7 +52,7 @@ class Config:
     # Base URL for action links
     BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
-    # Escalation SLA (hours per category) — prototype values, not official KSRTC
+    # Escalation SLA (hours per category) -- prototype values, not official KSRTC
     SLA_HOURS = {
         "UNSAFE_DRIVING": 1,
         "OVERCROWDING": 2,
@@ -54,15 +67,13 @@ class Config:
 
     # Depot status thresholds (pending ratio)
     DEPOT_STATUS_THRESHOLDS = {
-        "GREEN": 0.20,   # 0–20% pending
-        "YELLOW": 0.40,  # 20–40% pending
-        # > 40% → RED
+        "GREEN": 0.20,   # 0-20% pending
+        "YELLOW": 0.40,  # 20-40% pending
+        # > 40% -> RED
     }
 
     # Conductor action token
     ACTION_TOKEN_EXPIRY_HOURS = 24
 
     # Data paths
-    _csv_in_backend = os.path.join(BASE_DIR, "data", "ksrtc_depots.csv")
-    _csv_in_root = os.path.join(BASE_DIR, "..", "data", "ksrtc_depots.csv")
-    DEPOT_CSV_PATH = _csv_in_backend if os.path.exists(_csv_in_backend) else _csv_in_root
+    DEPOT_CSV_PATH = DEFAULT_DEPOT_CSV

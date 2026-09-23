@@ -19,7 +19,7 @@ def check_escalations(app):
         now = datetime.now(timezone.utc)
 
         # Find complaints that are not resolved and not already escalated
-        active_statuses = ["SUBMITTED", "ASSIGNED", "UNDER_REVIEW", "ACTION_REQUIRED"]
+        active_statuses = ["SUBMITTED", "ASSIGNED", "UNDER_REVIEW", "ACTION_TAKEN", "ACTION_REQUIRED", "UNABLE_TO_RESOLVE"]
         complaints = Complaint.query.filter(
             Complaint.status.in_(active_statuses)
         ).all()

@@ -1,11 +1,7 @@
-"""Seed conductors — 3 synthetic conductors per route.
+"""Seed conductors — prefer the mock conductor dataset when available, otherwise fall back to synthetic demo conductors."""
 
-Conductor names: Conductor 001, Conductor 002, etc.
-PEN: PEN-MOCK-0001, PEN-MOCK-0002, etc.
-Phone: +91900000XXXX (synthetic)
-
-Clearly marked as prototype data — do not represent real KSRTC employees.
-"""
+import csv
+import os
 
 from app.extensions import db
 from app.models import Conductor, Route, Depot
@@ -13,7 +9,42 @@ from app.seed.seed_buses import DEMO_DEPOTS
 
 
 def seed_conductors():
-    """Create 3 synthetic conductors per route in demo depots."""
+    """Create conductors from the mock dataset when present, otherwise generate synthetic demo conductors."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    mock_csv = os.path.join(base_dir, "data", "mock_conductors.csv")
+
+    if os.path.exists(mock_csv):
+        print("[SEED] Loading mock conductors from CSV...")
+        conductor_count = 0
+        with open(mock_csv, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                depot_code = (row.get("depot_id") or "").strip()
+                depot = Depot.query.filter_by(depot_code=depot_code).first()
+                if not depot:
+                    continue
+
+                pen = (row.get("pen") or "").strip()
+                if not pen:
+                    continue
+
+                existing = Conductor.query.filter_by(pen=pen).first()
+                if existing:
+                    continue
+
+                db.session.add(Conductor(
+                    pen=pen,
+                    name=(row.get("name") or "").strip() or "Mock Conductor",
+                    phone=(row.get("phone") or "").strip() or None,
+                    depot_id=depot.id,
+                    status=(row.get("status") or "ACTIVE").strip() or "ACTIVE",
+                ))
+                conductor_count += 1
+
+        db.session.commit()
+        print(f"[SEED] {conductor_count} mock conductors loaded from CSV.")
+        return
+
     print("[SEED] Creating synthetic conductors...")
 
     conductor_count = 0
@@ -27,7 +58,7 @@ def seed_conductors():
         routes = Route.query.filter_by(depot_id=depot.id).all()
 
         for route in routes:
-            for i in range(3):  # 3 conductors per route
+            for i in range(3):
                 pen = f"PEN-MOCK-{global_counter:04d}"
 
                 existing = Conductor.query.filter_by(pen=pen).first()

@@ -30,6 +30,12 @@ def create_complaint(data, user, image_files=None, upload_folder=None):
     9. Notify depot head
     10. Return reference number
     """
+    client_request_id = (data.get("client_request_id") or "").strip()
+    if client_request_id:
+        existing = Complaint.query.filter_by(client_request_id=client_request_id).first()
+        if existing:
+            return existing, {"code": "DUPLICATE_REQUEST", "message": "Duplicate complaint request detected.", "reference_number": existing.reference_number}
+
     # 1. Validate
     errors = validate_complaint_data(data)
     if errors:
@@ -92,6 +98,7 @@ def create_complaint(data, user, image_files=None, upload_folder=None):
         location_source=location_data.get("location_source"),
         status="SUBMITTED",
         priority=priority,
+        client_request_id=client_request_id or None,
     )
     db.session.add(complaint)
     db.session.flush()  # Get complaint.id
@@ -232,14 +239,14 @@ def update_complaint_status(complaint_id, new_status, changed_by=None, changed_b
 def _determine_priority(category):
     """Determine complaint priority based on category."""
     priority_map = {
-        "UNSAFE_DRIVING": "CRITICAL",
+        "UNSAFE_DRIVING": "URGENT",
         "OVERCROWDING": "HIGH",
-        "CLEANLINESS": "MEDIUM",
+        "CLEANLINESS": "NORMAL",
         "MISSED_STOP": "MEDIUM",
         "CONCESSION_DENIAL": "MEDIUM",
         "OTHER": "LOW",
     }
-    return priority_map.get(category, "MEDIUM")
+    return priority_map.get(category, "NORMAL")
 
 
 def _save_images(complaint, image_files, upload_folder):

@@ -10,6 +10,7 @@ from app.services.complaint_service import (
     get_complaint_by_reference,
     get_user_complaints,
 )
+from app.models import Complaint
 from app.services.pdf_service import generate_complaint_pdf
 
 complaint_bp = Blueprint("complaints", __name__, url_prefix="/api/complaints")
@@ -50,9 +51,27 @@ def submit_complaint():
 
     upload_folder = current_app.config.get("UPLOAD_FOLDER")
 
+    client_request_id = (data.get("client_request_id") or "").strip()
+    if client_request_id:
+        existing = Complaint.query.filter_by(client_request_id=client_request_id).first()
+        if existing:
+            return error_response(
+                "DUPLICATE_REQUEST",
+                "This complaint has already been submitted.",
+                409,
+                reference_number=existing.reference_number,
+            )
+
     complaint, errors = create_complaint(data, user, image_files, upload_folder)
 
     if errors:
+        if isinstance(errors, dict) and errors.get("code") == "DUPLICATE_REQUEST":
+            return error_response(
+                errors["code"],
+                errors["message"],
+                409,
+                reference_number=errors.get("reference_number"),
+            )
         return error_response("VALIDATION_ERROR", "; ".join(errors))
 
     return success_response({

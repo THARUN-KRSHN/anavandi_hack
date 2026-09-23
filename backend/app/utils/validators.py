@@ -3,6 +3,19 @@
 from app.models.complaint import COMPLAINT_CATEGORIES, COMPLAINT_STATUSES
 
 
+STATUS_ALIASES = {
+    "ACTION_REQUIRED": "ACTION_TAKEN",
+}
+
+
+def normalize_status(status):
+    """Normalize legacy status values into the canonical state names."""
+    if not status:
+        return status
+    canonical = STATUS_ALIASES.get(status.upper())
+    return canonical or status.upper()
+
+
 def validate_complaint_data(data):
     """Validate complaint submission data. Returns list of error strings."""
     errors = []
@@ -36,23 +49,19 @@ def validate_complaint_data(data):
 def validate_status_transition(current_status, new_status):
     """Validate that a status transition is allowed.
 
-    Valid transitions:
-    SUBMITTED → ASSIGNED
-    ASSIGNED → UNDER_REVIEW
-    UNDER_REVIEW → ACTION_REQUIRED
-    ACTION_REQUIRED → RESOLVED
-    SUBMITTED → ESCALATED (by scheduler)
-    ASSIGNED → ESCALATED (by scheduler)
-    UNDER_REVIEW → ESCALATED (by scheduler)
-    ESCALATED → UNDER_REVIEW
-    ESCALATED → RESOLVED
+    Canonical statuses: SUBMITTED, ASSIGNED, UNDER_REVIEW, ACTION_TAKEN,
+    UNABLE_TO_RESOLVE, RESOLVED, ESCALATED.
     """
+    current_status = normalize_status(current_status)
+    new_status = normalize_status(new_status)
+
     valid_transitions = {
         "SUBMITTED": ["ASSIGNED", "ESCALATED"],
         "ASSIGNED": ["UNDER_REVIEW", "ESCALATED"],
-        "UNDER_REVIEW": ["ACTION_REQUIRED", "ESCALATED", "RESOLVED"],
-        "ACTION_REQUIRED": ["RESOLVED"],
-        "ESCALATED": ["UNDER_REVIEW", "RESOLVED"],
+        "UNDER_REVIEW": ["ACTION_TAKEN", "UNABLE_TO_RESOLVE", "ESCALATED", "RESOLVED"],
+        "ACTION_TAKEN": ["RESOLVED", "ESCALATED"],
+        "UNABLE_TO_RESOLVE": ["RESOLVED", "ESCALATED"],
+        "ESCALATED": ["UNDER_REVIEW", "RESOLVED", "ACTION_TAKEN"],
     }
 
     allowed = valid_transitions.get(current_status, [])
@@ -63,7 +72,8 @@ def validate_status_transition(current_status, new_status):
 
 def validate_conductor_action_status(status):
     """Validate that a conductor can set this status."""
-    allowed = ["UNDER_REVIEW", "ACTION_REQUIRED", "RESOLVED"]
+    status = normalize_status(status)
+    allowed = ["UNDER_REVIEW", "ACTION_TAKEN", "UNABLE_TO_RESOLVE", "RESOLVED"]
     if status not in allowed:
         return False, f"Conductor can only set status to: {', '.join(allowed)}"
     return True, None

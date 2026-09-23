@@ -18,15 +18,18 @@ def success_response(data=None, message=None, status_code=200):
     return jsonify(response), status_code
 
 
-def error_response(code, message, status_code=400):
+def error_response(code, message, status_code=400, **extra):
     """Standard error response."""
-    return jsonify({
+    payload = {
         "success": False,
         "error": {
             "code": code,
             "message": message,
         }
-    }), status_code
+    }
+    if extra:
+        payload["error"].update(extra)
+    return jsonify(payload), status_code
 
 
 def generate_reference_number():

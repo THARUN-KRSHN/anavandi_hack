@@ -97,9 +97,13 @@ def process_conductor_action(raw_token, new_status, comment=None):
     conductor = Conductor.query.get(action_token.conductor_id)
 
     # 2. Validate status
-    allowed_statuses = ["UNDER_REVIEW", "ACTION_REQUIRED", "RESOLVED"]
-    if new_status not in allowed_statuses:
+    allowed_statuses = ["UNDER_REVIEW", "ACTION_TAKEN", "UNABLE_TO_RESOLVE", "RESOLVED"]
+    status_value = new_status.upper()
+    if status_value == "ACTION_REQUIRED":
+        status_value = "ACTION_TAKEN"
+    if status_value not in allowed_statuses:
         return None, f"Invalid status. Must be one of: {', '.join(allowed_statuses)}"
+    new_status = status_value
 
     # 3. Update complaint
     old_status = complaint.status

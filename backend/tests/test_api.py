@@ -1,11 +1,8 @@
 """Comprehensive API test suite for KSRTC Passenger Grievance Backend."""
 
-import os
-import json
+import uuid
 import pytest
 from app import create_app
-from app.extensions import db
-from app.models import User, Depot, Complaint, Conductor, Bus, Route
 from app.services.escalation_service import check_escalations
 
 
@@ -83,7 +80,6 @@ def test_login_missing_fields(client):
 
 
 def test_signup_new_user(client):
-    import uuid
     rand_email = f"test_{uuid.uuid4().hex[:8]}@demo.com"
     res = client.post("/api/auth/signup", json={
         "name": "Automated Tester",
@@ -223,6 +219,56 @@ def test_complaint_submission_and_retrieval(client, passenger_token):
     assert len(pdf_res.data) > 500  # valid PDF bytes
 
 
+def test_complaint_duplicate_request_is_idempotent(client, passenger_token):
+    buses = client.get("/api/buses", headers={"Authorization": f"Bearer {passenger_token}"}).get_json()["data"]
+    routes = client.get("/api/routes", headers={"Authorization": f"Bearer {passenger_token}"}).get_json()["data"]
+
+    payload = {
+        "category": "CLEANLINESS",
+        "description": "Duplicate request id should be rejected after the first submission.",
+        "bus_id": buses[0]["id"],
+        "route_id": routes[0]["id"],
+        "reported_at": "2026-09-23T09:45:00Z",
+        "client_request_id": "dup-request-001",
+    }
+
+    first = client.post("/api/complaints", headers={"Authorization": f"Bearer {passenger_token}"}, json=payload)
+    assert first.status_code == 201
+    first_ref = first.get_json()["data"]["reference_number"]
+
+    second = client.post("/api/complaints", headers={"Authorization": f"Bearer {passenger_token}"}, json=payload)
+    assert second.status_code == 409
+    assert second.get_json()["error"]["code"] == "DUPLICATE_REQUEST"
+    assert second.get_json()["error"]["reference_number"] == first_ref
+
+
+def test_conductor_action_accepts_new_statuses(client, depot_head_token):
+    complaints_res = client.get("/api/depot/complaints", headers={"Authorization": f"Bearer {depot_head_token}"})
+    complaints = complaints_res.get_json()["data"]["complaints"]
+    assert len(complaints) > 0
+
+    conductors_res = client.get("/api/depot/conductors", headers={"Authorization": f"Bearer {depot_head_token}"})
+    conductors = conductors_res.get_json()["data"]
+    assert len(conductors) > 0
+
+    complaint_id = complaints[0]["id"]
+    conductor_id = conductors[0]["id"]
+
+    notify_res = client.post(
+        f"/api/depot/complaints/{complaint_id}/notify-conductor",
+        headers={"Authorization": f"Bearer {depot_head_token}"},
+        json={"conductor_id": conductor_id},
+    )
+    assert notify_res.status_code == 200
+
+    action_url = notify_res.get_json()["data"]["action_url"]
+    token = action_url.split("/")[-1]
+
+    action_post = client.post(f"/api/conductor/action/{token}", json={"status": "ACTION_TAKEN", "comment": "Action taken."})
+    assert action_post.status_code == 200
+    assert action_post.get_json()["data"]["status"] == "ACTION_TAKEN"
+
+
 # ---------------------------------------------------------------------------
 # 6. Depot Head Endpoints & Conductor Workflow
 # ---------------------------------------------------------------------------
@@ -342,7 +388,7 @@ def test_admin_depots_map(client, admin_token):
     assert len(data) == 97
     # Hero depots should have color statuses
     statuses = {d["depot_code"]: d["status"] for d in data}
-    assert "GREEN" in [d["status"] for d in data]
+    assert "GREEN" in statuses.values()
 
 
 def test_admin_depot_detail(client, admin_token):

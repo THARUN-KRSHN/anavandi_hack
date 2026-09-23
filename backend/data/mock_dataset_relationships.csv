@@ -1,0 +1,6 @@
+entity,source_file,primary_key,foreign_key_relationship,notes
+DEPOTS,ksrtc_depots.csv,depot_id,Base dataset; 97 depot records,Source depot data; not mock.
+BUSES,mock_buses.csv,bus_id,depot_id -> depots.depot_id,3 synthetic buses per depot.
+ROUTES,mock_routes.csv,route_id,depot_id -> depots.depot_id,3 synthetic routes per depot; destinations are explicitly DEMO values.
+CONDUCTORS,mock_conductors.csv,conductor_id,depot_id -> depots.depot_id,9 synthetic conductors per depot; names/PEN/phones are mock.
+DUTY_ASSIGNMENTS,mock_duty_assignments.csv,assignment_id,"depot_id, bus_id, route_id, conductor_id -> respective tables",3 shifts per bus on 2026-09-23.

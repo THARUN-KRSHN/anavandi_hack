@@ -19,13 +19,15 @@ COMPLAINT_STATUSES = [
     "SUBMITTED",
     "ASSIGNED",
     "UNDER_REVIEW",
-    "ACTION_REQUIRED",
+    "ACTION_TAKEN",
+    "UNABLE_TO_RESOLVE",
     "RESOLVED",
     "ESCALATED",
+    "ACTION_REQUIRED",  # backward compatibility alias
 ]
 
 # Priority levels
-COMPLAINT_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+COMPLAINT_PRIORITIES = ["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT", "CRITICAL"]
 
 
 class Complaint(db.Model):
@@ -60,6 +62,7 @@ class Complaint(db.Model):
     # Status
     status = db.Column(db.String(20), nullable=False, default="SUBMITTED")
     priority = db.Column(db.String(10), nullable=False, default="MEDIUM")
+    client_request_id = db.Column(db.String(128), unique=True, nullable=True)
 
     # Timestamps
     assigned_at = db.Column(db.DateTime, nullable=True)

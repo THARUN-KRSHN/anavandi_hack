@@ -3,6 +3,7 @@
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from sqlalchemy import text
 
 from config import Config
 from app.extensions import db, jwt, scheduler
@@ -34,6 +35,22 @@ def create_app(config_class=Config):
     db.init_app(app)
     jwt.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    with app.app_context():
+        db.create_all()
+        inspector = db.inspect(db.engine)
+        if "complaints" in inspector.get_table_names():
+            complaint_columns = {column["name"] for column in inspector.get_columns("complaints")}
+            if "client_request_id" not in complaint_columns:
+                with db.engine.begin() as connection:
+                    connection.execute(text("ALTER TABLE complaints ADD COLUMN client_request_id VARCHAR(128)"))
+                with db.engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS idx_complaints_client_request_id "
+                            "ON complaints(client_request_id) WHERE client_request_id IS NOT NULL"
+                        )
+                    )
 
     # Register blueprints
     app.register_blueprint(auth_bp)

@@ -6,8 +6,12 @@ Creates:
   - ADOOR: Green (low pending ratio)
   - ERNAKULAM: Yellow (medium pending ratio)
   - ALUVA: Red (high pending ratio)
+
+When the mock duty-assignment CSV exists, it is loaded directly for demo consistency.
 """
 
+import csv
+import os
 import random
 from datetime import datetime, timedelta, time as dt_time, timezone, date
 
@@ -59,7 +63,73 @@ HERO_DEPOTS = {
 
 
 def seed_assignments():
-    """Create duty assignments for demo depots: today ± 3 days."""
+    """Create duty assignments from the CSV if present, otherwise generate synthetic assignment data."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    mock_csv = os.path.join(base_dir, "data", "mock_duty_assignments.csv")
+
+    if os.path.exists(mock_csv):
+        print("[SEED] Loading mock duty assignments from CSV...")
+        assignment_count = 0
+
+        with open(mock_csv, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                depot_code = (row.get("depot_id") or "").strip()
+                depot = Depot.query.filter_by(depot_code=depot_code).first()
+                if not depot:
+                    continue
+
+                bus_ref = (row.get("bus_id") or "").strip()
+                route_ref = (row.get("route_id") or "").strip()
+                conductor_ref = (row.get("conductor_id") or "").strip()
+
+                bus = None
+                if bus_ref:
+                    bus = Bus.query.filter_by(bus_number=(next((r.get("bus_number") for r in csv.DictReader(open(os.path.join(base_dir, "data", "mock_buses.csv"), "r", encoding="utf-8")) if r.get("bus_id") == bus_ref), None))).first()
+                route = None
+                if route_ref:
+                    route = Route.query.filter_by(route_code=(next((r.get("route_code") for r in csv.DictReader(open(os.path.join(base_dir, "data", "mock_routes.csv"), "r", encoding="utf-8")) if r.get("route_id") == route_ref), None))).first()
+                conductor = None
+                if conductor_ref:
+                    conductor = Conductor.query.filter_by(pen=(next((r.get("pen") for r in csv.DictReader(open(os.path.join(base_dir, "data", "mock_conductors.csv"), "r", encoding="utf-8")) if r.get("conductor_id") == conductor_ref), None))).first()
+
+                if not bus or not route or not conductor:
+                    continue
+
+                duty_date = row.get("duty_date", "").strip()
+                try:
+                    duty_date_dt = datetime.strptime(duty_date, "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+
+                existing = DutyAssignment.query.filter_by(
+                    bus_id=bus.id,
+                    route_id=route.id,
+                    conductor_id=conductor.id,
+                    depot_id=depot.id,
+                    duty_date=duty_date_dt,
+                    shift_start=datetime.strptime(row.get("shift_start", "00:00"), "%H:%M").time(),
+                ).first()
+                if existing:
+                    continue
+
+                db.session.add(DutyAssignment(
+                    bus_id=bus.id,
+                    route_id=route.id,
+                    conductor_id=conductor.id,
+                    depot_id=depot.id,
+                    duty_date=duty_date_dt,
+                    shift_start=datetime.strptime(row.get("shift_start", "00:00"), "%H:%M").time(),
+                    shift_end=datetime.strptime(row.get("shift_end", "00:00"), "%H:%M").time(),
+                    trip_number=1,
+                    status=(row.get("assignment_status") or "SCHEDULED").strip() or "SCHEDULED",
+                ))
+                assignment_count += 1
+
+        db.session.commit()
+        print(f"[SEED] {assignment_count} mock duty assignments loaded from CSV.")
+        return
+
     print("[SEED] Creating duty assignments...")
 
     assignment_count = 0
@@ -80,18 +150,16 @@ def seed_assignments():
         conductor_idx = 0
 
         for bus in buses:
-            bus_routes = [r for r in routes][:2]  # Max 2 routes per bus
+            bus_routes = [r for r in routes][:2]
 
             for route in bus_routes:
-                for day_offset in range(-3, 4):  # ±3 days
+                for day_offset in range(-3, 4):
                     duty_date = today + timedelta(days=day_offset)
 
                     for shift_name, shift_start, shift_end in SHIFTS:
-                        # Cycle through conductors
                         conductor = conductors[conductor_idx % len(conductors)]
                         conductor_idx += 1
 
-                        # Check if assignment already exists
                         existing = DutyAssignment.query.filter_by(
                             bus_id=bus.id,
                             route_id=route.id,
