@@ -25,6 +25,16 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Frontend dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # IDE and OS files
 .vscode/
 .idea/
