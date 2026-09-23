@@ -3,10 +3,11 @@
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, get_jwt
 
-from app.models import Bus, Route, Conductor, Depot
+from app.models import Bus, Route, Conductor, Depot, Complaint
 from app.utils.auth import login_required, role_required, get_current_user
 from app.utils.helpers import success_response, error_response
 from app.services.complaint_service import get_depot_complaints, get_complaint_by_reference
+from app.services.complaint_service import update_complaint_status
 from app.services.dashboard_service import get_depot_dashboard
 from app.services.assignment_service import find_conductor
 from app.services.conductor_service import send_conductor_sms
@@ -91,6 +92,23 @@ def complaint_detail(complaint_id):
         data["possible_conductor"] = None
 
     return success_response(data)
+
+
+@depot_bp.route("/complaints/<int:complaint_id>/status", methods=["PATCH"])
+@role_required("DEPOT_HEAD")
+def update_status(complaint_id):
+    """PATCH /api/depot/complaints/<id>/status — transition a depot complaint."""
+    depot_id = _get_depot_id()
+    data = request.get_json() or {}
+    complaint = Complaint.query.get(complaint_id)
+    if not complaint or complaint.depot_id != depot_id:
+        return error_response("COMPLAINT_NOT_FOUND", "Complaint not found in your depot.", 404)
+    if not data.get("status"):
+        return error_response("INVALID_INPUT", "Status is required.")
+    updated, error = update_complaint_status(complaint_id, data["status"], changed_by=get_jwt_identity(), changed_by_role="DEPOT_HEAD", comment=data.get("comment"))
+    if error:
+        return error_response("STATUS_UPDATE_FAILED", error)
+    return success_response(updated.to_dict(include_timeline=True))
 
 
 @depot_bp.route("/complaints/<int:complaint_id>/notify-conductor", methods=["POST"])

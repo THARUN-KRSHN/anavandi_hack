@@ -2,10 +2,12 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Building2, Shield, Play } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useAuth } from '../../app/AuthContext';
 
 export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ onStartDemoFlow }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const getCurrentRole = () => {
     if (location.pathname.startsWith('/depot')) return 'depot';
@@ -20,12 +22,12 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="font-bold tracking-wider text-red-500 uppercase">ANAVANDI</span>
-          <span className="text-gray-400 hidden sm:inline">| Demo Role Switcher:</span>
+          <span className="text-gray-400 hidden sm:inline">| {user ? `${user.name} · ${user.role.replace('_', ' ')}` : 'Secure workspace'}</span>
         </div>
 
         <div className="flex items-center gap-1.5 bg-gray-900 p-1 rounded-xl border border-gray-800">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => user?.role === 'USER' && navigate('/')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors font-medium ${
               activeRole === 'passenger'
                 ? 'bg-[#D92D20] text-white shadow-xs'
@@ -37,7 +39,7 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
           </button>
 
           <button
-            onClick={() => navigate('/depot')}
+            onClick={() => user?.role === 'DEPOT_HEAD' && navigate('/depot')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors font-medium ${
               activeRole === 'depot'
                 ? 'bg-[#D92D20] text-white shadow-xs'
@@ -49,7 +51,7 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
           </button>
 
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => user?.role === 'ADMIN' && navigate('/admin')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors font-medium ${
               activeRole === 'admin'
                 ? 'bg-[#D92D20] text-white shadow-xs'
@@ -61,6 +63,8 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
           </button>
         </div>
 
+        <div className="flex items-center gap-2">
+        {user && <button onClick={signOut} className="text-gray-300 hover:text-white font-semibold px-2">Sign out</button>}
         {onStartDemoFlow && (
           <Button
             size="sm"
@@ -72,6 +76,7 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
             Run Guided Demo Flow
           </Button>
         )}
+        </div>
       </div>
     </div>
   );

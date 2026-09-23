@@ -8,11 +8,12 @@ import { AppRouter } from './router';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { createComplaint } from '../services/complaintsService';
+import { useAuth } from './AuthContext';
 
 export const App: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const isDepot = location.pathname.startsWith('/depot');
   const isAdmin = location.pathname.startsWith('/admin');
@@ -41,17 +42,7 @@ export const App: React.FC = () => {
     } else if (next === 2) {
       navigate('/report');
     } else if (next === 3) {
-      // Auto-create sample complaint GRV-10482
-      const created = await createComplaint({
-        category: 'conductor_staff',
-        categoryLabel: 'Conductor / Staff Behaviour',
-        description: 'Conductor refused to issue exact change balance receipt for Rs 50.',
-        busNumber: 'KL-15-A-4021',
-        routeFrom: 'Trivandrum Central',
-        routeTo: 'Kollam Junction',
-        incidentTime: '09:15 AM Today',
-      });
-      navigate('/report/success', { state: { complaint: created } });
+      navigate('/report');
     } else if (next === 4) {
       navigate('/depot/complaints');
     } else if (next === 5) {
@@ -66,7 +57,7 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white text-[#171717] flex flex-col font-sans selection:bg-[#D92D20] selection:text-white">
       {/* Top Demo Role Switcher */}
-      <RoleSwitcherBar onStartDemoFlow={() => { setDemoStep(1); navigate('/'); setDemoModalOpen(true); }} />
+      <RoleSwitcherBar onStartDemoFlow={user ? () => { setDemoStep(1); navigate('/'); setDemoModalOpen(true); } : undefined} />
 
       {/* Main Navigation Bar */}
       <Navbar />

@@ -24,6 +24,8 @@ export const ReportComplaint: React.FC = () => {
   // Form State
   const [category, setCategory] = useState<ComplaintCategory>('conductor_staff');
   const [busNumber, setBusNumber] = useState('KL-15-A-4021');
+  const [busId, setBusId] = useState<number | undefined>();
+  const [routeId, setRouteId] = useState<number | undefined>();
   const [routeFrom, setRouteFrom] = useState('Trivandrum Central');
   const [routeTo, setRouteTo] = useState('Kollam Junction');
   const [incidentTime, setIncidentTime] = useState('09:15 AM Today');
@@ -63,9 +65,8 @@ export const ReportComplaint: React.FC = () => {
         category,
         categoryLabel: categoryObj?.label || 'General Grievance',
         description,
-        busNumber,
-        routeFrom,
-        routeTo,
+        busId,
+        routeId,
         incidentTime,
         evidenceFiles,
       });
@@ -156,8 +157,10 @@ export const ReportComplaint: React.FC = () => {
 
             <BusSelector
               selectedBusNumber={busNumber}
-              onBusSelect={(busNum, from, to) => {
+              onBusSelect={(busNum, from, to, selectedBusId, selectedRouteId) => {
                 setBusNumber(busNum);
+                setBusId(selectedBusId);
+                setRouteId(selectedRouteId);
                 if (from) setRouteFrom(from);
                 if (to) setRouteTo(to);
               }}

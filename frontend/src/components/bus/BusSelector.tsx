@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Input, Select } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { QRScanModal } from './QRScanModal';
-import { Bus, QrCode } from 'lucide-react';
-import { mockBuses, mockRoutes } from '../../data/mock/busesData';
+import { Bus as BusIcon, QrCode } from 'lucide-react';
+import { fetchBuses, fetchRoutes } from '../../services/busesService';
+import type { Bus as BusRecord, Route } from '../../types/bus';
 
 interface BusSelectorProps {
   selectedBusNumber: string;
-  onBusSelect: (busNumber: string, routeFrom?: string, routeTo?: string) => void;
+  onBusSelect: (busNumber: string, routeFrom?: string, routeTo?: string, busId?: number, routeId?: number) => void;
 }
 
 export const BusSelector: React.FC<BusSelectorProps> = ({
@@ -16,10 +17,14 @@ export const BusSelector: React.FC<BusSelectorProps> = ({
 }) => {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedRouteId, setSelectedRouteId] = useState('');
+  const [buses, setBuses] = useState<BusRecord[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
+
+  React.useEffect(() => { Promise.all([fetchBuses(), fetchRoutes()]).then(([loadedBuses, loadedRoutes]) => { setBuses(loadedBuses); setRoutes(loadedRoutes); }).catch(() => undefined); }, []);
 
   const routeOptions = [
     { value: '', label: '-- Select Bus Route (Optional Fallback) --' },
-    ...mockRoutes.map((r) => ({
+    ...routes.map((r) => ({
       value: r.id,
       label: `${r.code}: ${r.name}`,
     })),
@@ -28,11 +33,11 @@ export const BusSelector: React.FC<BusSelectorProps> = ({
   const handleRouteSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const routeId = e.target.value;
     setSelectedRouteId(routeId);
-    const routeObj = mockRoutes.find((r) => r.id === routeId);
+    const routeObj = routes.find((r) => r.id === routeId);
     if (routeObj) {
       // Find a bus registered on this route
-      const busOnRoute = mockBuses.find((b) => b.routeId === routeId) || mockBuses[0];
-      onBusSelect(busOnRoute.busNumber, routeObj.origin, routeObj.destination);
+      const busOnRoute = buses.find((b) => b.routeId === routeId) || buses[0];
+      onBusSelect(busOnRoute.busNumber, routeObj.origin, routeObj.destination, undefined, Number(routeObj.id));
     }
   };
 
@@ -45,7 +50,7 @@ export const BusSelector: React.FC<BusSelectorProps> = ({
             placeholder="e.g. KL-15-A-4021"
             value={selectedBusNumber}
             onChange={(e) => onBusSelect(e.target.value)}
-            icon={<Bus className="w-4 h-4 text-[#667085]" />}
+            icon={<BusIcon className="w-4 h-4 text-[#667085]" />}
           />
         </div>
         <Button
@@ -82,9 +87,9 @@ export const BusSelector: React.FC<BusSelectorProps> = ({
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
         onSelectBus={(busNum) => {
-          const matched = mockBuses.find((b) => b.busNumber === busNum);
+          const matched = buses.find((b) => b.busNumber === busNum);
           if (matched) {
-            const r = mockRoutes.find((rt) => rt.id === matched.routeId);
+            const r = routes.find((rt) => rt.id === matched.routeId);
             onBusSelect(busNum, r?.origin, r?.destination);
           } else {
             onBusSelect(busNum);

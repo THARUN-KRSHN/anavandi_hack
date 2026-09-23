@@ -48,6 +48,9 @@ class Config:
     SMS_PROVIDER = os.getenv("SMS_PROVIDER", "mock")
     SMS_API_KEY = os.getenv("SMS_API_KEY", "")
     SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "")
+    SMS_ACCOUNT_SID = os.getenv("SMS_ACCOUNT_SID", "")
+    SMS_AUTH_TOKEN = os.getenv("SMS_AUTH_TOKEN", "")
+    SMS_FROM_NUMBER = os.getenv("SMS_FROM_NUMBER", SMS_SENDER_ID)
 
     # Base URL for action links
     BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")

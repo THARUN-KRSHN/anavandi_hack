@@ -4,6 +4,10 @@ Supports MockSMSProvider (default) and SMSLocalProvider (for production).
 """
 
 import os
+import base64
+import json
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from datetime import datetime, timezone
 
 from flask import current_app
@@ -59,6 +63,30 @@ class SMSLocalProvider:
             return False, str(e)
 
 
+class TwilioSMSProvider:
+    """Twilio REST adapter using only the Python standard library."""
+
+    def __init__(self, account_sid, auth_token, from_number):
+        self.account_sid = account_sid
+        self.auth_token = auth_token
+        self.from_number = from_number
+
+    def send(self, phone, message):
+        if not phone:
+            return False, "Recipient phone number is missing."
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"
+        body = urlencode({"To": phone, "From": self.from_number, "Body": message}).encode()
+        auth = base64.b64encode(f"{self.account_sid}:{self.auth_token}".encode()).decode()
+        request = Request(url, data=body, headers={"Authorization": f"Basic {auth}"}, method="POST")
+        try:
+            with urlopen(request, timeout=15) as response:
+                payload = json.loads(response.read().decode())
+            return True, f"SMS sent via Twilio ({payload.get('sid', 'accepted')})."
+        except Exception as error:
+            print(f"[ERROR] Twilio send failed: {error}")
+            return False, str(error)
+
+
 def _get_sms_provider():
     """Factory: return the configured SMS provider."""
     provider_name = current_app.config.get("SMS_PROVIDER", "mock")
@@ -70,6 +98,14 @@ def _get_sms_provider():
             return SMSLocalProvider(api_key, sender_id)
         # Fallback to mock if no credentials
         print("[WARN] SMSLocal configured but no API key -- falling back to mock.")
+        return MockSMSProvider()
+    if provider_name == "twilio":
+        account_sid = current_app.config.get("SMS_ACCOUNT_SID", "")
+        auth_token = current_app.config.get("SMS_AUTH_TOKEN", "")
+        from_number = current_app.config.get("SMS_FROM_NUMBER", "")
+        if account_sid and auth_token and from_number:
+            return TwilioSMSProvider(account_sid, auth_token, from_number)
+        print("[WARN] Twilio configured without complete credentials -- falling back to mock.")
         return MockSMSProvider()
     else:
         return MockSMSProvider()
@@ -129,7 +165,7 @@ def notify_depot_head(depot_id, complaint):
     # Also send SMS if depot head has phone
     if depot.head_phone and depot.head_phone != "0":
         try:
-            send_sms(depot.head_phone, message)
+            sms_success, sms_message = send_sms(depot.head_phone, message)
             # Record SMS notification
             sms_notification = Notification(
                 recipient_type="DEPOT_HEAD",
@@ -138,8 +174,8 @@ def notify_depot_head(depot_id, complaint):
                 channel="SMS",
                 title=title,
                 message=message,
-                status="SENT",
-                sent_at=datetime.now(timezone.utc),
+                status="SENT" if sms_success else "FAILED",
+                sent_at=datetime.now(timezone.utc) if sms_success else None,
             )
             db.session.add(sms_notification)
             db.session.commit()
