@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchComplaintById } from '../../services/complaintsService';
-import { sendConductorSms, getFast2SMSKey, saveFast2SMSKey } from '../../services/smsService';
+import { sendConductorSms } from '../../services/smsService';
 import { getDutyRosterForBus } from '../../services/crewService';
 import type { Complaint } from '../../types/complaint';
 import { MiniLocationMap } from '../../components/map/MiniLocationMap';
@@ -14,8 +14,6 @@ import {
   Clock,
   MapPin,
   X,
-  Smartphone,
-  Zap,
 } from 'lucide-react';
 
 export const ComplaintDetails: React.FC = () => {
@@ -37,10 +35,10 @@ export const ComplaintDetails: React.FC = () => {
     routeCode: string;
   } | null>(null);
 
-  // SMS Modal State
+  // Conductor Email Modal State
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
   const [targetPhone, setTargetPhone] = useState('');
-  const [fast2smsKey, setFast2smsKey] = useState(getFast2SMSKey());
+  const [recipientEmail, setRecipientEmail] = useState('tharunkrishnachoolikattil@gmail.com');
   const [smsMessage, setSmsMessage] = useState('');
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsSuccessBanner, setSmsSuccessBanner] = useState<string | null>(null);
@@ -104,11 +102,10 @@ export const ComplaintDetails: React.FC = () => {
   const openSmsModal = () => {
     if (!complaint || !matchingConductor) return;
     const origin = window.location.origin;
-    const template = `Bus Sahayi: Complaint ${complaint.reference} (${
+    const template = `Bus Sahayi: Duty action required for Complaint ${complaint.reference} (${
       complaint.categoryLabel || complaint.category
     }) on bus ${complaint.busNumber || matchingConductor.busNumber}. Update status: ${origin}/u/{token}`;
     setSmsMessage(template);
-    setFast2smsKey(getFast2SMSKey());
     setIsSmsModalOpen(true);
   };
 
@@ -116,22 +113,24 @@ export const ComplaintDetails: React.FC = () => {
     if (!complaint || !matchingConductor) return;
     setIsSendingSms(true);
     try {
-      saveFast2SMSKey(fast2smsKey);
       const recipientPhone = targetPhone.trim() || matchingConductor.conductorPhone;
 
-      const { outboxLog } = await sendConductorSms({
+      await sendConductorSms({
         complaintId: complaint.id,
         complaintRef: complaint.reference,
         categoryLabel: complaint.categoryLabel || complaint.category,
         busNumber: complaint.busNumber || matchingConductor.busNumber,
         conductorName: matchingConductor.conductorName,
         conductorPhone: recipientPhone,
+        recipientEmail: recipientEmail.trim(),
         depotId,
         customMessage: smsMessage,
+        description: complaint.description,
+        routeCode: `${complaint.routeFrom} ➔ ${complaint.routeTo}`,
       });
 
       setSmsSuccessBanner(
-        `SMS Status: [${outboxLog.deliveryStatus}] Dispatched to ${recipientPhone}!`
+        `Email Notification Sent: Action link dispatched to ${recipientEmail}!`
       );
       setIsSmsModalOpen(false);
       await loadDetails();
@@ -196,7 +195,7 @@ export const ComplaintDetails: React.FC = () => {
             onClick={openSmsModal}
             className="px-4 py-2.5 bg-[#D92D20] text-white text-xs font-bold rounded-full shadow-md hover:bg-red-700 flex items-center gap-2 transition-all"
           >
-            <Send className="w-4 h-4" /> Send SMS to Conductor
+            <Send className="w-4 h-4" /> Send Conductor Action Email
           </button>
         )}
       </div>
@@ -357,14 +356,14 @@ export const ComplaintDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* SMS Modal Dialog */}
+      {/* Email Modal Dialog */}
       {isSmsModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white max-w-md w-full rounded-[28px] p-6 shadow-2xl border border-[#EAECF0] space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#EAECF0]">
               <div className="flex items-center gap-2">
                 <Send className="w-5 h-5 text-[#D92D20]" />
-                <h3 className="text-base font-black text-[#171717]">Send Conductor SMS</h3>
+                <h3 className="text-base font-black text-[#171717]">Send Conductor Action Email</h3>
               </div>
               <button
                 onClick={() => setIsSmsModalOpen(false)}
@@ -374,39 +373,28 @@ export const ComplaintDetails: React.FC = () => {
               </button>
             </div>
 
-            {/* Fast2SMS Active Badge Banner */}
-            <div className="px-3.5 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs font-extrabold text-amber-800">
-              <span className="flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-amber-600 fill-amber-600" /> Fast2SMS API Active
-              </span>
-              <span className="text-[10px] text-amber-700 font-bold bg-white px-2 py-0.5 rounded-full border border-amber-300">
-                +91 Quick SMS Mode
-              </span>
-            </div>
-
-            {/* Recipient Phone Settings */}
-            <div className="space-y-1.5 bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+            {/* Recipient Email Info */}
+            <div className="space-y-1.5 bg-blue-50/60 p-3.5 rounded-2xl border border-blue-100">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-extrabold text-[#171717] flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-[#D92D20]" /> Target Phone Number:
+                  <Send className="w-4 h-4 text-[#D92D20]" /> Destination Email Address:
                 </label>
-                <span className="text-[10px] text-[#D92D20] font-bold">(Put your friend's number)</span>
+                <span className="text-[10px] text-blue-700 font-bold">Depot Head Official Mail</span>
               </div>
               <input
-                type="text"
-                placeholder="e.g. 9876543210 or +919876543210"
-                value={targetPhone}
-                onChange={(e) => setTargetPhone(e.target.value)}
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
                 className="w-full p-2.5 bg-white border border-[#EAECF0] rounded-xl text-xs font-bold font-mono text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20"
               />
               <span className="text-[10px] text-[#667085] block">
-                Target recipient: <strong>{matchingConductor?.conductorName}</strong>
+                Target Conductor: <strong>{matchingConductor?.conductorName}</strong> (PEN: {matchingConductor?.conductorPen})
               </span>
             </div>
 
             {/* Message preview */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#171717] block">Editable Message Preview:</label>
+              <label className="text-xs font-bold text-[#171717] block">Email Action Link Preview:</label>
               <textarea
                 rows={4}
                 value={smsMessage}
@@ -414,19 +402,8 @@ export const ComplaintDetails: React.FC = () => {
                 className="w-full p-3 bg-gray-50 border border-[#EAECF0] rounded-2xl text-xs font-mono text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20"
               />
               <span className="text-[10px] text-[#667085] block">
-                The placeholder <code>{"{token}"}</code> will automatically be replaced by a secure single-use token.
+                The placeholder <code>{"{token}"}</code> will automatically generate a single-use secure status update link for the conductor.
               </span>
-            </div>
-
-            {/* Fast2SMS Key Configuration */}
-            <div className="space-y-1 bg-gray-100 p-3 rounded-xl text-xs">
-              <label className="text-[10px] font-bold text-gray-700 block">Fast2SMS Authorization API Key:</label>
-              <input
-                type="text"
-                value={fast2smsKey}
-                onChange={(e) => setFast2smsKey(e.target.value)}
-                className="w-full p-2 bg-white border rounded-lg text-[11px] font-mono text-gray-800"
-              />
             </div>
 
             {/* Modal Actions */}
@@ -442,7 +419,7 @@ export const ComplaintDetails: React.FC = () => {
                 disabled={isSendingSms}
                 className="px-5 py-2 bg-[#D92D20] text-white text-xs font-bold rounded-full shadow-md hover:bg-red-700 flex items-center gap-1.5"
               >
-                {isSendingSms ? 'Dispatching SMS...' : 'Confirm & Dispatch SMS'}
+                {isSendingSms ? 'Sending Email...' : 'Confirm & Send Email'}
               </button>
             </div>
           </div>

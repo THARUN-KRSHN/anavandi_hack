@@ -135,7 +135,7 @@ export const DepotDashboard: React.FC = () => {
             {depotName} Reports
           </h1>
           <p className="text-xs text-[#667085] mt-0.5">
-            Monitor incoming passenger grievances, dispatch SMS updates to conductors, and maintain depot SLA targets.
+            Monitor incoming passenger grievances, dispatch action links to conductors, and maintain depot SLA targets.
           </p>
         </div>
 

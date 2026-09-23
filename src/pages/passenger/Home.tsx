@@ -4,8 +4,11 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ThreeScene } from '../../components/three/ThreeScene';
 import { FileText, Search, ShieldCheck, Bus, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const Home: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="space-y-12 pb-12">
       {/* Hero Section with Frosted Glass Transparency for Background Dots */}
@@ -16,22 +19,22 @@ export const Home: React.FC = () => {
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100/70 text-[#D92D20] text-xs font-semibold border border-red-200">
               <ShieldCheck className="w-4 h-4 text-[#D92D20]" />
-              <span>Bus Sahayi — Public Transport Grievance & Accountability</span>
+              <span>{t('app.title')} — {t('app.tagline')}</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black text-[#171717] tracking-tight leading-tight">
-              Report bus issues in <span className="text-[#D92D20]">under 60 seconds</span>. Hold depots accountable.
+              {t('home.hero_title')}
             </h1>
 
             <p className="text-base text-[#475467] leading-relaxed max-w-xl">
-              Bus Sahayi connects passenger complaints directly to vehicle duty rosters and authorized depot managers. Trace your issue from ticket to resolution.
+              {t('home.hero_desc')}
             </p>
 
             {/* Privacy Callout */}
             <div className="flex items-center gap-2 text-xs text-[#667085] bg-white/90 backdrop-blur-xs p-3 rounded-2xl border border-[#EAECF0] shadow-xs max-w-md">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                <strong>Privacy Guaranteed:</strong> No personal name or exact location required to submit.
+                <strong>Privacy Guaranteed:</strong> No personal identity required to submit.
               </span>
             </div>
 
@@ -44,7 +47,7 @@ export const Home: React.FC = () => {
                   icon={<FileText className="w-5 h-5" />}
                   className="w-full sm:w-auto shadow-lg shadow-red-200 text-base"
                 >
-                  Report an Issue
+                  {t('home.report_btn')}
                 </Button>
               </Link>
 
@@ -55,7 +58,7 @@ export const Home: React.FC = () => {
                   icon={<Search className="w-5 h-5" />}
                   className="w-full sm:w-auto bg-white/90"
                 >
-                  Track Complaint
+                  {t('home.track_btn')}
                 </Button>
               </Link>
             </div>
@@ -75,7 +78,7 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl font-extrabold text-[#171717] tracking-tight">
-            How Bus Sahayi Works
+            Key Governance Features
           </h2>
           <p className="text-sm text-[#667085] mt-1">
             Transparent, traceable, and depot-driven public transport governance
@@ -87,9 +90,9 @@ export const Home: React.FC = () => {
             <div className="p-3 rounded-2xl bg-red-50 text-[#D92D20] font-bold">
               <Bus className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-lg text-[#171717]">1. Identify Vehicle</h3>
+            <h3 className="font-bold text-lg text-[#171717]">{t('home.feature_routing_title')}</h3>
             <p className="text-sm text-[#667085]">
-              Scan bus QR code, enter registration number (e.g. KL-15-A-4021), or pick route fallback.
+              {t('home.feature_routing_desc')}
             </p>
           </Card>
 
@@ -97,9 +100,9 @@ export const Home: React.FC = () => {
             <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 font-bold">
               <Clock className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-lg text-[#171717]">2. Automatic Roster Trace</h3>
+            <h3 className="font-bold text-lg text-[#171717]">{t('home.feature_sla_title')}</h3>
             <p className="text-sm text-[#667085]">
-              System matches bus + timestamp to active duty roster and authorized conductor PEN records.
+              {t('home.feature_sla_desc')}
             </p>
           </Card>
 
@@ -107,9 +110,9 @@ export const Home: React.FC = () => {
             <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 font-bold">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-lg text-[#171717]">3. Depot Accountability</h3>
+            <h3 className="font-bold text-lg text-[#171717]">{t('home.feature_notif_title')}</h3>
             <p className="text-sm text-[#667085]">
-              Depot officers investigate, acknowledge, and resolve cases with public progress tracking.
+              {t('home.feature_notif_desc')}
             </p>
           </Card>
         </div>
@@ -121,12 +124,12 @@ export const Home: React.FC = () => {
           <div>
             <h4 className="font-bold text-base text-[#171717]">Already filed a grievance?</h4>
             <p className="text-xs text-[#667085]">
-              Enter your reference number (e.g. GRV-10482) to view live status updates.
+              Enter your reference number (e.g. KSRTC-2026-XXXXXX) to view live status updates.
             </p>
           </div>
           <Link to="/track">
             <Button variant="secondary" icon={<ArrowRight className="w-4 h-4" />}>
-              Track My Case
+              {t('home.track_btn')}
             </Button>
           </Link>
         </Card>

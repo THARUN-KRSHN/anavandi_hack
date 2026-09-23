@@ -12,7 +12,7 @@ from app.models import (
 from app.utils.helpers import generate_reference_number, log_activity
 from app.utils.validators import validate_complaint_data
 from app.services.routing_service import determine_depot, estimate_location
-from app.services.notification_service import notify_depot_head
+from app.services.notification_service import notify_depot_head, notify_on_complaint_submitted, notify_on_status_change
 
 
 def create_complaint(data, user, image_files=None, upload_folder=None):
@@ -120,12 +120,11 @@ def create_complaint(data, user, image_files=None, upload_folder=None):
 
     db.session.commit()
 
-    # 9. Notify depot head
-    if depot_id:
-        try:
-            notify_depot_head(depot_id, complaint)
-        except Exception as e:
-            print(f"[WARN] Failed to notify depot head: {e}")
+    # 9. Notify depot head + user confirmation
+    try:
+        notify_on_complaint_submitted(complaint, user)
+    except Exception as e:
+        print(f"[WARN] Failed to send submission notifications: {e}")
 
     # 10. Log activity
     log_activity(
@@ -233,13 +232,13 @@ def update_complaint_status(complaint_id, new_status, changed_by=None, changed_b
     db.session.add(history)
     db.session.commit()
 
-    if new_status == "UNDER_REVIEW":
+    # Notify user on any meaningful status change
+    notify_statuses = {"UNDER_REVIEW", "ASSIGNED", "ACTION_TAKEN", "RESOLVED", "UNABLE_TO_RESOLVE"}
+    if new_status in notify_statuses:
         try:
-            from app.services.email_service import send_user_status_update_email
-            passenger_name = complaint.user.name if complaint.user else "Valued Passenger"
-            send_user_status_update_email(passenger_name, complaint)
-        except Exception as email_err:
-            print(f"[WARN] Email update to user failed: {email_err}")
+            notify_on_status_change(complaint, new_status)
+        except Exception as notify_err:
+            print(f"[WARN] Status-change notification failed: {notify_err}")
 
     return complaint, None
 

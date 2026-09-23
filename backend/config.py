@@ -54,6 +54,18 @@ class Config:
     SMS_ACCOUNT_SID = os.getenv("SMS_ACCOUNT_SID", "")
     SMS_AUTH_TOKEN = os.getenv("SMS_AUTH_TOKEN", "")
     SMS_FROM_NUMBER = os.getenv("SMS_FROM_NUMBER", SMS_SENDER_ID)
+    FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY", "")
+    DEMO_SMS_NUMBER = os.getenv("DEMO_SMS_NUMBER", "+919778585423")
+
+    # Email (SMTP)
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_SENDER = os.getenv("SMTP_SENDER", "BUS സഹായി <noreply@bussahayi.gov.in>")
+
+    # Frontend URL
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
     # Base URL for action links
     BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")

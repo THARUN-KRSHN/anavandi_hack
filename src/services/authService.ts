@@ -96,21 +96,24 @@ async function syncUserToSupabase(params: {
       }
     }
 
-    // 3. Upsert into public.users table in Supabase PostgreSQL
+    // 3. Upsert into public.profiles table in Supabase PostgreSQL
     try {
-      await supabase.from('users').upsert(
-        {
-          email: targetEmail,
-          name: params.name,
-          phone: cleanPhone,
-          role: params.role.toUpperCase(),
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'email' }
-      );
+      if (authUserId) {
+        await supabase.from('profiles').upsert(
+          {
+            auth_user_id: authUserId,
+            email: targetEmail,
+            name: params.name,
+            phone: cleanPhone,
+            role: params.role.toUpperCase(),
+            active: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'auth_user_id' }
+        );
+      }
     } catch (tblErr) {
-      console.warn('Supabase public.users sync notice:', tblErr);
+      console.warn('Supabase public.profiles sync notice:', tblErr);
     }
 
     return authUserId;
@@ -297,14 +300,19 @@ export async function loginStaff(
     console.warn('Backend API staff login notice:', backendErr);
   }
 
+  const cleanStaffLoc = staffId.replace(/^DEPOT_/i, '').replace(/_DEPOT$/i, '').trim();
+  const formattedDepotName = cleanStaffLoc
+    ? `${cleanStaffLoc.charAt(0).toUpperCase()}${cleanStaffLoc.slice(1).toLowerCase()} Depot`
+    : `${staffId} Depot`;
+
   const staffUser: UserProfile = {
     id: supabaseUserId || staffId,
-    name: role === 'admin' ? 'Kerala State Transport Directorate' : `Depot Officer (${staffId})`,
+    name: role === 'admin' ? 'Kerala State Transport Directorate' : `Depot Officer (${cleanStaffLoc.toUpperCase()})`,
     phone: '',
     email: staffEmail,
     role,
     depotId: role === 'depot_head' ? staffId.toUpperCase() : undefined,
-    depotName: role === 'depot_head' ? `${staffId.toUpperCase()} Depot` : undefined,
+    depotName: role === 'depot_head' ? formattedDepotName : undefined,
   };
 
   setCurrentUserSession(staffUser);
@@ -339,8 +347,8 @@ export function updateProfile(name: string, phone: string, email: string): UserP
       data: { name, phone },
     }).catch(console.warn);
 
-    // Also update public.users table
-    void supabase.from('users').update({
+    // Also update public.profiles table
+    void supabase.from('profiles').update({
       name,
       phone,
       updated_at: new Date().toISOString(),

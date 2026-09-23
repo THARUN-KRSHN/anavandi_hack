@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchDepots } from '../../services/depotService';
 import { fetchComplaints } from '../../services/complaintsService';
@@ -9,6 +9,8 @@ import { Building2, ArrowRight } from 'lucide-react';
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [depots, setDepots] = useState<DepotMaster[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
 
   const loadData = async () => {
     try {
@@ -56,7 +58,27 @@ export const AdminDashboard: React.FC = () => {
 
   const totalComplaints = depots.reduce((acc, d) => acc + d.totalComplaints, 0);
   const totalResolved = depots.reduce((acc, d) => acc + d.resolvedComplaints, 0);
-  const totalPending = totalComplaints - totalResolved;
+  const totalPending = Math.max(0, totalComplaints - totalResolved);
+
+  const allDistricts = useMemo(() => {
+    const set = new Set<string>();
+    depots.forEach((d) => {
+      if (d.district) set.add(d.district);
+    });
+    return Array.from(set).sort();
+  }, [depots]);
+
+  const filteredDepots = useMemo(() => {
+    return depots.filter((d) => {
+      const matchesSearch =
+        !searchTerm ||
+        d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.district.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDistrict = selectedDistrict === 'all' || d.district === selectedDistrict;
+      return matchesSearch && matchesDistrict;
+    });
+  }, [depots, searchTerm, selectedDistrict]);
 
   return (
     <div className="space-y-6 pb-16">
@@ -99,10 +121,43 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Depots Summary Cards Grid */}
       <div className="space-y-4">
-        <h2 className="text-base font-black text-[#171717]">All 6 Kerala Depots Summary</h2>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-black text-[#171717]">
+              All {depots.length} Kerala Depots Summary
+            </h2>
+            <p className="text-xs text-[#667085]">
+              Real-time operational backlog and performance indicators across all active KSRTC depots.
+            </p>
+          </div>
+
+          {/* Search & Filter Controls */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search depot or district..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3.5 py-1.5 bg-white border border-[#EAECF0] rounded-xl text-xs font-medium text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20 w-full sm:w-56"
+            />
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-[#EAECF0] rounded-xl text-xs font-semibold text-[#171717] focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Districts</option>
+              {allDistricts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {depots.map((depot) => {
-            const unresolved = depot.totalComplaints - depot.resolvedComplaints;
+          {filteredDepots.map((depot) => {
+            const unresolved = Math.max(0, depot.totalComplaints - depot.resolvedComplaints);
             const ratio = unresolved / (depot.totalComplaints || 1);
             let badgeColor = 'bg-green-50 text-[#16A34A] border-green-200';
             let label = 'Green (Low Backlog)';
@@ -128,7 +183,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-[#171717]">{depot.name}</h3>
-                      <span className="text-[10px] font-bold text-[#667085]">{depot.district}</span>
+                      <span className="text-[10px] font-bold text-[#667085]">{depot.district} &bull; {depot.code}</span>
                     </div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${badgeColor}`}>
@@ -165,3 +220,4 @@ export const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+

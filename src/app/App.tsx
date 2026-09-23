@@ -35,7 +35,7 @@ export const App: React.FC = () => {
 
           {/* Body Content Layout */}
           <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto">
-            {(isDepot || isAdmin) && <Sidebar role={role as 'depot' | 'admin'} />}
+            {(isDepot || isAdmin) && <Sidebar role={role === 'admin' ? 'admin' : 'depot'} />}
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
               <AppRouter />

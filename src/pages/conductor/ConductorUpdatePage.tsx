@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { getSmsToken, submitConductorStatusUpdate, type SmsToken } from '../../services/smsService';
 import { fetchComplaintById } from '../../services/complaintsService';
 import type { Complaint } from '../../types/complaint';
 import { CheckCircle2, Clock, AlertTriangle, Check } from 'lucide-react';
 
 export const ConductorUpdatePage: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { token: routeToken } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
+  const token = routeToken || searchParams.get('token') || undefined;
 
   const [tokenData, setTokenData] = useState<SmsToken | null>(null);
   const [complaint, setComplaint] = useState<Complaint | null>(null);
@@ -45,7 +47,24 @@ export const ConductorUpdatePage: React.FC = () => {
 
         // Fetch complaint details
         const cmp = await fetchComplaintById(tokenObj.complaintId);
-        setComplaint(cmp);
+        setComplaint(
+          cmp || {
+            id: tokenObj.complaintId,
+            reference: tokenObj.complaintRef,
+            category: tokenObj.categoryLabel as any,
+            categoryLabel: tokenObj.categoryLabel,
+            busNumber: tokenObj.busNumber,
+            description: tokenObj.description || 'Passenger grievance requiring conductor response.',
+            routeFrom: tokenObj.routeFrom || 'Scheduled Route Origin',
+            routeTo: tokenObj.routeTo || 'Destination',
+            status: 'forwarded_to_conductor',
+            createdAt: tokenObj.sentAt,
+            updatedAt: tokenObj.sentAt,
+            incidentTime: tokenObj.sentAt,
+            priority: 'normal',
+            timeline: [],
+          }
+        );
       } catch (err) {
         console.error(err);
         setErrorMessage('Failed to load complaint data.');

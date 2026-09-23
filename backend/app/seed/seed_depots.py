@@ -9,6 +9,7 @@ import os
 from app.extensions import db
 from app.models import Depot, User
 from app.utils.auth import hash_password
+from app.seed.populate_depot_coords import DEPOT_COORDS
 
 TEST_DEPOT_PHONE = "9778585423"
 
@@ -64,6 +65,10 @@ def seed_depots(csv_path=None):
             if head_phone == "0":
                 head_phone = None
 
+            coords = DEPOT_COORDS.get(name.upper().strip())
+            lat = coords[0] if coords else 9.9816
+            lng = coords[1] if coords else 76.2999
+
             depot = Depot(
                 depot_code=depot_code,
                 serial_no=serial_no,
@@ -71,8 +76,8 @@ def seed_depots(csv_path=None):
                 mobile=mobile,
                 head_phone=head_phone,
                 email=email,
-                latitude=None,   # Not in CSV
-                longitude=None,  # Not in CSV
+                latitude=lat,
+                longitude=lng,
             )
             db.session.add(depot)
             db.session.flush()  # Get depot.id

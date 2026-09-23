@@ -1,5 +1,5 @@
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { DepotMaster } from '../../types/depot';
 import { useNavigate } from 'react-router-dom';
@@ -10,15 +10,45 @@ interface AdminDepotMapProps {
   depots: DepotMaster[];
 }
 
+// Auto-resizer and Bounds adjuster Hook
+function AdminMapController({ depots }: { depots: DepotMaster[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    // Invalidate size after mount to prevent grey/missing tiles
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    // If depots are loaded, fit bounds to show all Kerala depots
+    if (depots.length > 0) {
+      const validPoints = depots
+        .filter((d) => d.lat && d.lng && !isNaN(d.lat) && !isNaN(d.lng))
+        .map((d) => [d.lat, d.lng] as [number, number]);
+
+      if (validPoints.length > 1) {
+        try {
+          const bounds = L.latLngBounds(validPoints);
+          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
+        } catch (_) {}
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [map, depots]);
+
+  return null;
+}
+
 export const AdminDepotMap: React.FC<AdminDepotMapProps> = ({ depots }) => {
   const navigate = useNavigate();
   // Center of Kerala
-  const keralaCenter: [number, number] = [10.0, 76.4];
+  const keralaCenter: [number, number] = [10.2, 76.4];
 
   const getDepotColor = (depot: DepotMaster): { hex: string; name: string; bgClass: string; textClass: string } => {
-    const total = depot.totalComplaints || 1;
-    const resolved = depot.resolvedComplaints || 0;
-    const unresolved = total - resolved;
+    const total = Math.max(1, depot.totalComplaints || 1);
+    const resolved = Math.max(0, depot.resolvedComplaints || 0);
+    const unresolved = Math.max(0, total - resolved);
     const ratio = unresolved / total;
 
     if (ratio <= 0.3) {
@@ -31,44 +61,48 @@ export const AdminDepotMap: React.FC<AdminDepotMapProps> = ({ depots }) => {
   };
 
   const createNodeIcon = (depot: DepotMaster) => {
-    const unresolved = (depot.totalComplaints || 0) - (depot.resolvedComplaints || 0);
+    const total = Math.max(0, depot.totalComplaints || 0);
+    const resolved = Math.max(0, depot.resolvedComplaints || 0);
+    const unresolved = Math.max(0, total - resolved);
     const color = getDepotColor(depot);
 
     return L.divIcon({
       className: 'custom-depot-node-icon',
       html: `
-        <div style="
+        <div title="${depot.name} - ${unresolved} pending" style="
           background-color: ${color.hex};
           color: white;
-          width: 44px;
-          height: 44px;
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 900;
-          font-size: 13px;
-          border: 3px solid white;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          font-size: 12px;
+          border: 2.5px solid white;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+          cursor: pointer;
           position: relative;
+          transition: transform 0.15s ease;
         ">
           ${unresolved}
           <div style="
             position: absolute;
-            bottom: -6px;
+            bottom: -5px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 6px solid ${color.hex};
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid ${color.hex};
           "></div>
         </div>
       `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 50],
-      popupAnchor: [0, -46],
+      iconSize: [38, 38],
+      iconAnchor: [19, 43],
+      popupAnchor: [0, -40],
     });
   };
 
@@ -86,34 +120,46 @@ export const AdminDepotMap: React.FC<AdminDepotMapProps> = ({ depots }) => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <ZoomControl position="bottomright" />
+        <AdminMapController depots={depots} />
 
         {depots.map((depot) => {
-          const unresolved = depot.totalComplaints - depot.resolvedComplaints;
+          const lat = Number(depot.lat);
+          const lng = Number(depot.lng);
+          if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null;
+
+          const total = Math.max(0, depot.totalComplaints || 0);
+          const resolved = Math.max(0, depot.resolvedComplaints || 0);
+          const unresolved = Math.max(0, total - resolved);
 
           return (
             <Marker
               key={depot.id}
-              position={[depot.lat, depot.lng]}
+              position={[lat, lng]}
               icon={createNodeIcon(depot)}
             >
+              <Tooltip direction="top" offset={[0, -38]} opacity={0.95}>
+                <span className="font-bold text-xs">
+                  {depot.name} ({unresolved} pending)
+                </span>
+              </Tooltip>
               <Popup className="depot-node-popup">
                 <div className="p-3 max-w-xs space-y-3 font-sans">
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
                     <Building2 className="w-4 h-4 text-[#171717]" />
                     <div>
                       <h4 className="text-xs font-black text-[#171717]">{depot.name}</h4>
-                      <span className="text-[10px] font-bold text-[#667085]">{depot.district}</span>
+                      <span className="text-[10px] font-bold text-[#667085]">{depot.district} &bull; {depot.code}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-center text-xs">
                     <div className="p-2 bg-gray-50 rounded-xl">
                       <span className="text-[9px] font-bold text-[#667085] block uppercase">Total</span>
-                      <span className="font-black text-[#171717]">{depot.totalComplaints}</span>
+                      <span className="font-black text-[#171717]">{total}</span>
                     </div>
                     <div className="p-2 bg-green-50 rounded-xl">
                       <span className="text-[9px] font-bold text-[#16A34A] block uppercase">Solved</span>
-                      <span className="font-black text-[#16A34A]">{depot.resolvedComplaints}</span>
+                      <span className="font-black text-[#16A34A]">{resolved}</span>
                     </div>
                     <div className="p-2 bg-red-50 rounded-xl">
                       <span className="text-[9px] font-bold text-[#D92D20] block uppercase">Pending</span>
@@ -121,13 +167,14 @@ export const AdminDepotMap: React.FC<AdminDepotMapProps> = ({ depots }) => {
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-[#667085]">
-                    <span className="font-bold text-[#171717]">Depot Head:</span> {depot.depotHeadName}
+                  <div className="text-[11px] text-[#667085] space-y-0.5">
+                    <div><span className="font-bold text-[#171717]">Depot Officer:</span> {depot.depotHeadName}</div>
+                    <div><span className="font-bold text-[#171717]">Fleet:</span> {depot.totalBuses} buses &bull; {depot.totalCrew} crew</div>
                   </div>
 
                   <button
                     onClick={() => navigate(`/admin/depot/${depot.id}`)}
-                    className="w-full py-2 bg-[#171717] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-black flex items-center justify-center gap-1.5 transition-all"
+                    className="w-full py-2 bg-[#171717] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-black flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
                     View Depot Dashboard <ArrowRight className="w-3.5 h-3.5" />
                   </button>

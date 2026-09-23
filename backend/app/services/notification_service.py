@@ -1,23 +1,46 @@
-"""Notification service — adapter pattern for SMS providers.
+"""Notification service — BUS സഹായി complete notification flow.
 
-Supports MockSMSProvider (default) and SMSLocalProvider (for production).
+Architecture:
+  Business Event → NotificationService → [SMS Provider] + [Email Service]
+                                        → DB record (notifications table)
+
+SMS Providers (priority order):
+  1. Fast2SMS  (FAST2SMS_API_KEY set)
+  2. Twilio    (SMS_PROVIDER=twilio + credentials set)
+  3. MockSMS   (console-only, always available)
+
+DEMO_MODE:
+  SMS  → DEMO_SMS_NUMBER (+919778585423)
+  Email → tharunkrishnachoolikattil@gmail.com  (handled in email_service.py)
+
+4 Notification Types:
+  USER_TO_DEPOT       — complaint submitted → depot head alert + user confirmation
+  DEPOT_TO_USER       — status changed → user status email
+  DEPOT_TO_CONDUCTOR  — conductor assigned → duty notification
+  ESCALATION_TO_ADMIN — SLA breached → admin + depot head alert
 """
 
-import os
 import base64
 import json
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from datetime import datetime, timezone
 
 from flask import current_app
 from app.extensions import db
 from app.models import Notification, User, Depot
 
+# Demo delivery addresses (logical recipient info is recorded separately)
+DEMO_SMS_NUMBER = "+919778585423"
+
+
+# ---------------------------------------------------------------------------
+# Phone normaliser
+# ---------------------------------------------------------------------------
 
 def normalize_phone(phone):
     """Convert common Indian local numbers to E.164 for SMS providers."""
-    value = "".join(character for character in str(phone or "") if character.isdigit() or character == "+")
+    value = "".join(c for c in str(phone or "") if c.isdigit() or c == "+")
     if value.startswith("0") and len(value) == 11:
         return "+91" + value[1:]
     if value.isdigit() and len(value) == 10:
@@ -32,51 +55,68 @@ def normalize_phone(phone):
 # ---------------------------------------------------------------------------
 
 class MockSMSProvider:
-    """Console + DB logging SMS provider for demo/prototype."""
+    """Console-only SMS provider for local dev / fallback."""
 
     def send(self, phone, message):
         print("=" * 60)
         print(f"[MOCK SMS] To: {phone}")
-        print(f"[MOCK SMS] Message:")
-        print(message)
+        print(f"[MOCK SMS] Message:\n{message}")
         print("=" * 60)
-        return True, "Mock SMS sent successfully."
+        return True, "Mock SMS sent."
 
 
-class SMSLocalProvider:
-    """SMSLocal.com adapter for Indian phone numbers.
-
-    Requires SMS_API_KEY and SMS_SENDER_ID in config.
+class Fast2SMSProvider:
+    """Fast2SMS DLT/Quick-SMS adapter for Indian numbers.
+    
+    API reference: https://docs.fast2sms.com/
     """
 
-    def __init__(self, api_key, sender_id):
+    BASE_URL = "https://www.fast2sms.com/dev/bulkV2"
+
+    def __init__(self, api_key):
         self.api_key = api_key
-        self.sender_id = sender_id
 
     def send(self, phone, message):
-        # Placeholder — actual API integration would go here
+        phone = normalize_phone(phone)
+        # Fast2SMS needs the 10-digit number without +91
+        if phone.startswith("+91"):
+            phone = phone[3:]
+        elif phone.startswith("91") and len(phone) == 12:
+            phone = phone[2:]
+
         try:
-            import requests
-            response = requests.post(
-                "https://api.smslocal.com/send",
-                data={
-                    "apikey": self.api_key,
-                    "sender": self.sender_id,
-                    "number": phone,
-                    "message": message,
+            import urllib.request
+            import urllib.parse
+
+            payload = json.dumps({
+                "route": "q",   # Quick SMS (no DLT required for demo)
+                "message": message,
+                "language": "english",
+                "flash": 0,
+                "numbers": phone,
+            }).encode()
+
+            req = urllib.request.Request(
+                self.BASE_URL,
+                data=payload,
+                headers={
+                    "authorization": self.api_key,
+                    "Content-Type": "application/json",
                 },
-                timeout=10,
+                method="POST",
             )
-            if response.status_code == 200:
-                return True, "SMS sent via SMSLocal."
-            return False, f"SMSLocal error: {response.text}"
-        except Exception as e:
-            print(f"[ERROR] SMSLocal send failed: {e}")
-            return False, str(e)
+            with urllib.request.urlopen(req, timeout=12) as response:
+                result = json.loads(response.read().decode())
+            if result.get("return") is True:
+                return True, f"Fast2SMS sent (request_id={result.get('request_id', 'ok')})"
+            return False, f"Fast2SMS error: {result}"
+        except Exception as exc:
+            print(f"[ERROR] Fast2SMS send failed: {exc}")
+            return False, str(exc)
 
 
 class TwilioSMSProvider:
-    """Twilio REST adapter using only the Python standard library."""
+    """Twilio REST adapter using Python stdlib."""
 
     def __init__(self, account_sid, auth_token, from_number):
         self.account_sid = account_sid
@@ -90,149 +130,355 @@ class TwilioSMSProvider:
         url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"
         body = urlencode({"To": phone, "From": self.from_number, "Body": message}).encode()
         auth = base64.b64encode(f"{self.account_sid}:{self.auth_token}".encode()).decode()
-        request = Request(url, data=body, headers={"Authorization": f"Basic {auth}"}, method="POST")
+        req = Request(url, data=body, headers={"Authorization": f"Basic {auth}"}, method="POST")
         try:
-            with urlopen(request, timeout=15) as response:
+            with urlopen(req, timeout=15) as response:
                 payload = json.loads(response.read().decode())
-            return True, f"SMS sent via Twilio ({payload.get('sid', 'accepted')})."
-        except Exception as error:
-            print(f"[ERROR] Twilio send failed: {error}")
-            return False, str(error)
+            return True, f"Twilio SMS sent ({payload.get('sid', 'accepted')})."
+        except Exception as exc:
+            print(f"[ERROR] Twilio send failed: {exc}")
+            return False, str(exc)
 
 
 def _get_sms_provider():
-    """Factory: return the configured SMS provider."""
-    provider_name = current_app.config.get("SMS_PROVIDER", "mock")
+    """Factory: return the highest-priority available SMS provider."""
+    cfg = current_app.config
 
-    if provider_name == "smslocal":
-        api_key = current_app.config.get("SMS_API_KEY", "")
-        sender_id = current_app.config.get("SMS_SENDER_ID", "")
-        if api_key:
-            return SMSLocalProvider(api_key, sender_id)
-        # Fallback to mock if no credentials
-        print("[WARN] SMSLocal configured but no API key -- falling back to mock.")
-        return MockSMSProvider()
-    if provider_name == "twilio":
-        account_sid = current_app.config.get("SMS_ACCOUNT_SID", "")
-        auth_token = current_app.config.get("SMS_AUTH_TOKEN", "")
-        from_number = current_app.config.get("SMS_FROM_NUMBER", "")
-        if account_sid and auth_token and from_number:
-            return TwilioSMSProvider(account_sid, auth_token, from_number)
-        print("[WARN] Twilio configured without complete credentials -- falling back to mock.")
-        return MockSMSProvider()
-    else:
-        return MockSMSProvider()
+    # 1. Fast2SMS (preferred for Indian numbers)
+    fast2sms_key = cfg.get("FAST2SMS_API_KEY", "")
+    if fast2sms_key:
+        return Fast2SMSProvider(fast2sms_key)
+
+    # 2. Twilio
+    if cfg.get("SMS_PROVIDER", "") == "twilio":
+        sid = cfg.get("SMS_ACCOUNT_SID", "")
+        token = cfg.get("SMS_AUTH_TOKEN", "")
+        from_num = cfg.get("SMS_FROM_NUMBER", "")
+        if sid and token and from_num:
+            return TwilioSMSProvider(sid, token, from_num)
+
+    # 3. Mock fallback
+    print("[WARN] No SMS provider credentials found — using MockSMSProvider.")
+    return MockSMSProvider()
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Core SMS send
 # ---------------------------------------------------------------------------
 
-def send_sms(phone, message):
-    """Send an SMS using the configured provider.
+def send_sms(phone, message, demo_mode=True):
+    """SMS is disabled — email-only notification mode.
 
-    This is the one common function — switching providers doesn't
-    require changing complaint/depot/conductor logic.
+    This function is intentionally a no-op.  All SMS calls silently succeed
+    (return False) so that callers don't raise exceptions, but no SMS is
+    actually dispatched.  Email notifications via email_service.py remain
+    fully functional.
     """
-    provider = _get_sms_provider()
-    success, msg = provider.send(phone, message)
-    return success, msg
+    print(f"[SMS DISABLED] Would have sent to: {phone} — SMS suppressed (email-only mode).")
+    return False, "SMS disabled (email-only mode)"
 
 
-def notify_depot_head(depot_id, complaint):
-    """Notify the depot head about a new/escalated complaint.
+# ---------------------------------------------------------------------------
+# Notification DB record helper
+# ---------------------------------------------------------------------------
 
-    Creates an IN_APP notification record + optional SMS.
+def _record_notification(
+    recipient_type, recipient_id, complaint_id,
+    channel, title, message, success
+):
+    """Persist a notification record to the DB."""
+    try:
+        n = Notification(
+            recipient_type=recipient_type,
+            recipient_id=recipient_id,
+            complaint_id=complaint_id,
+            channel=channel,
+            title=title,
+            message=message,
+            status="SENT" if success else "FAILED",
+            sent_at=datetime.now(timezone.utc) if success else None,
+        )
+        db.session.add(n)
+        db.session.commit()
+    except Exception as exc:
+        print(f"[WARN] Failed to record notification: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# 1. USER_TO_DEPOT  — complaint submitted
+# ---------------------------------------------------------------------------
+
+def notify_on_complaint_submitted(complaint, user):
+    """
+    Triggers on: complaint submission
+    Recipients:
+      a) Depot Head  → email (depot report) + SMS
+      b) User/Passenger → email (confirmation)
+    """
+    # ---- a) Depot head ----
+    depot = Depot.query.get(complaint.depot_id) if complaint.depot_id else None
+    depot_head = (
+        User.query.filter_by(depot_id=complaint.depot_id, role="DEPOT_HEAD").first()
+        if complaint.depot_id else None
+    )
+
+    if depot and depot_head:
+        title = f"New Complaint: {complaint.reference_number}"
+        body = (
+            f"New complaint ({complaint.category}) assigned to {depot.name} depot.\n"
+            f"Reference: {complaint.reference_number}\n"
+            f"Priority: {complaint.priority}\n"
+            f"Bus: {complaint.bus.bus_number if complaint.bus else 'N/A'}"
+        )
+
+        # Email
+        try:
+            from app.services.email_service import send_depot_report_email
+            send_depot_report_email(depot.name, complaint)
+        except Exception as exc:
+            print(f"[WARN] Depot email failed: {exc}")
+
+        # SMS
+        sms_success = False
+        try:
+            sms_success, _ = send_sms(depot.head_phone or DEMO_SMS_NUMBER, body)
+        except Exception as exc:
+            print(f"[WARN] Depot SMS failed: {exc}")
+
+        _record_notification(
+            "DEPOT_HEAD", depot_head.id, complaint.id,
+            "EMAIL", title, body, True
+        )
+        _record_notification(
+            "DEPOT_HEAD", depot_head.id, complaint.id,
+            "SMS", title, body, sms_success
+        )
+
+    # ---- b) User confirmation ----
+    if user:
+        try:
+            from app.services.email_service import send_user_submission_confirmation
+            send_user_submission_confirmation(user.name, complaint)
+        except Exception as exc:
+            print(f"[WARN] User confirmation email failed: {exc}")
+
+        user_title = f"Complaint Received: {complaint.reference_number}"
+        user_body = (
+            f"Your complaint has been successfully submitted.\n"
+            f"Reference: {complaint.reference_number}\n"
+            f"Category: {complaint.category}\n"
+            f"We will keep you updated."
+        )
+
+        # SMS to user
+        sms_ok = False
+        try:
+            sms_ok, _ = send_sms(user.phone or DEMO_SMS_NUMBER, user_body)
+        except Exception as exc:
+            print(f"[WARN] User confirmation SMS failed: {exc}")
+
+        _record_notification(
+            "USER", user.id, complaint.id,
+            "EMAIL", user_title, user_body, True
+        )
+        _record_notification(
+            "USER", user.id, complaint.id,
+            "SMS", user_title, user_body, sms_ok
+        )
+
+
+# ---------------------------------------------------------------------------
+# 2. DEPOT_TO_USER  — status update
+# ---------------------------------------------------------------------------
+
+def notify_on_status_change(complaint, new_status):
+    """
+    Triggers on: depot head changes complaint status
+    Recipient: User/Passenger
+    """
+    user = complaint.user
+    if not user:
+        return
+
+    try:
+        from app.services.email_service import send_user_status_update_email
+        send_user_status_update_email(user.name, complaint)
+    except Exception as exc:
+        print(f"[WARN] Status-change email to user failed: {exc}")
+
+    status_label = new_status.replace("_", " ").title()
+    sms_body = (
+        f"BUS സഹായി Update\n"
+        f"Complaint {complaint.reference_number}: {status_label}\n"
+        f"Category: {complaint.category}\n"
+        f"Track at: http://localhost:5173/track"
+    )
+
+    sms_ok = False
+    try:
+        sms_ok, _ = send_sms(user.phone or DEMO_SMS_NUMBER, sms_body)
+    except Exception as exc:
+        print(f"[WARN] Status-change SMS to user failed: {exc}")
+
+    title = f"Complaint {complaint.reference_number} — {status_label}"
+    _record_notification("USER", user.id, complaint.id, "EMAIL", title, sms_body, True)
+    _record_notification("USER", user.id, complaint.id, "SMS", title, sms_body, sms_ok)
+
+
+# ---------------------------------------------------------------------------
+# 3. DEPOT_TO_CONDUCTOR — conductor assigned
+# ---------------------------------------------------------------------------
+
+def send_conductor_notification(conductor, complaint, action_url):
+    """
+    Triggers on: depot head sends SMS to conductor
+    Recipient: Conductor
+    """
+    sms_body = (
+        f"BUS സഹായി - Duty Assignment\n\n"
+        f"Ref: {complaint.reference_number}\n"
+        f"Issue: {complaint.category.replace('_', ' ')}\n"
+        f"Bus: {complaint.bus.bus_number if complaint.bus else 'N/A'}\n\n"
+        f"Tap to respond:\n{action_url}"
+    )
+
+    sms_ok, info = send_sms(conductor.phone or DEMO_SMS_NUMBER, sms_body)
+
+    title = f"Action Required: {complaint.reference_number}"
+    _record_notification(
+        "CONDUCTOR", None, complaint.id,
+        "SMS", title, sms_body, sms_ok
+    )
+
+    return sms_ok, info
+
+
+# ---------------------------------------------------------------------------
+# 4a. ESCALATION_TO_ADMIN — admin notified on SLA breach
+# ---------------------------------------------------------------------------
+
+def notify_escalation_to_admin(complaint):
+    """
+    Triggers on: SLA breach auto-escalation
+    Recipient: Admin
+    """
+    admin = User.query.filter_by(role="ADMIN").first()
+
+    try:
+        from app.services.email_service import send_escalation_to_admin_email
+        send_escalation_to_admin_email(complaint)
+    except Exception as exc:
+        print(f"[WARN] Admin escalation email failed: {exc}")
+
+    sms_body = (
+        f"[ESCALATION] BUS സഹായി\n"
+        f"SLA breached: {complaint.reference_number}\n"
+        f"Category: {complaint.category}\n"
+        f"Depot: {complaint.depot.name if complaint.depot else 'N/A'}\n"
+        f"Priority: {complaint.priority}\n"
+        f"Action required immediately."
+    )
+
+    sms_ok = False
+    try:
+        admin_phone = admin.phone if admin else None
+        sms_ok, _ = send_sms(admin_phone or DEMO_SMS_NUMBER, sms_body)
+    except Exception as exc:
+        print(f"[WARN] Admin escalation SMS failed: {exc}")
+
+    title = f"⚠️ ESCALATED: {complaint.reference_number}"
+    admin_id = admin.id if admin else None
+    _record_notification("ADMIN", admin_id, complaint.id, "EMAIL", title, sms_body, True)
+    _record_notification("ADMIN", admin_id, complaint.id, "SMS", title, sms_body, sms_ok)
+
+
+# ---------------------------------------------------------------------------
+# 4b. ESCALATION — depot head notified on SLA breach
+# ---------------------------------------------------------------------------
+
+def notify_escalation(depot_id, complaint):
+    """
+    Triggers on: SLA breach auto-escalation
+    Recipient: Depot Head
     """
     depot = Depot.query.get(depot_id)
     if not depot:
         return
 
-    # Find depot head user
     depot_head = User.query.filter_by(depot_id=depot_id, role="DEPOT_HEAD").first()
-    if not depot_head:
+
+    # Email depot head
+    try:
+        from app.services.email_service import send_escalation_depot_email
+        send_escalation_depot_email(depot.name, complaint)
+    except Exception as exc:
+        print(f"[WARN] Escalation depot email failed: {exc}")
+
+    # Also notify admin
+    try:
+        notify_escalation_to_admin(complaint)
+    except Exception as exc:
+        print(f"[WARN] Escalation admin notify failed: {exc}")
+
+    sms_body = (
+        f"[ESCALATED] BUS സഹായി\n"
+        f"Complaint {complaint.reference_number} has been escalated.\n"
+        f"SLA deadline exceeded. Please take immediate action."
+    )
+
+    sms_ok = False
+    try:
+        sms_ok, _ = send_sms(depot.head_phone or DEMO_SMS_NUMBER, sms_body)
+    except Exception as exc:
+        print(f"[WARN] Escalation depot SMS failed: {exc}")
+
+    title = f"⚠️ ESCALATED: {complaint.reference_number}"
+    recipient_id = depot_head.id if depot_head else None
+    _record_notification("DEPOT_HEAD", recipient_id, complaint.id, "EMAIL", title, sms_body, True)
+    _record_notification("DEPOT_HEAD", recipient_id, complaint.id, "SMS", title, sms_body, sms_ok)
+
+
+# ---------------------------------------------------------------------------
+# Legacy compatibility wrappers (keep old call-sites working)
+# ---------------------------------------------------------------------------
+
+def notify_depot_head(depot_id, complaint):
+    """Legacy: called from complaint_service.create_complaint."""
+    depot = Depot.query.get(depot_id) if depot_id else None
+    depot_head = User.query.filter_by(depot_id=depot_id, role="DEPOT_HEAD").first() if depot_id else None
+
+    if not depot or not depot_head:
         return
 
-    title = f"New Complaint: {complaint.reference_number}"
-    message = (
-        f"A new complaint ({complaint.category}) has been assigned to {depot.name} depot.\n"
-        f"Reference: {complaint.reference_number}\n"
-        f"Status: {complaint.status}\n"
-        f"Priority: {complaint.priority}"
-    )
-
-    # Create IN_APP notification
-    notification = Notification(
-        recipient_type="DEPOT_HEAD",
-        recipient_id=depot_head.id,
-        complaint_id=complaint.id,
-        channel="IN_APP",
-        title=title,
-        message=message,
-        status="SENT",
-        sent_at=datetime.now(timezone.utc),
-    )
-    db.session.add(notification)
-    db.session.commit()
-
-    # Send Email to Depot (Demo recipient: tharunkrishnachoolikattil@gmail.com)
+    # Email + SMS to depot head
     try:
         from app.services.email_service import send_depot_report_email
         send_depot_report_email(depot.name, complaint)
-    except Exception as email_err:
-        print(f"[WARN] Email to depot failed: {email_err}")
+    except Exception as exc:
+        print(f"[WARN] Depot report email failed: {exc}")
 
-    # Also send SMS if depot head has phone
-    if depot.head_phone and depot.head_phone != "0":
-        try:
-            sms_success, sms_message = send_sms(depot.head_phone, message)
-            # Record SMS notification
-            sms_notification = Notification(
-                recipient_type="DEPOT_HEAD",
-                recipient_id=depot_head.id,
-                complaint_id=complaint.id,
-                channel="SMS",
-                title=title,
-                message=message,
-                status="SENT" if sms_success else "FAILED",
-                sent_at=datetime.now(timezone.utc) if sms_success else None,
-            )
-            db.session.add(sms_notification)
-            db.session.commit()
-        except Exception as e:
-            print(f"[WARN] SMS to depot head failed: {e}")
-
-
-def send_conductor_notification(conductor, complaint, action_url):
-    """Send SMS to conductor with the action link."""
-    message = (
-        f"Public Transport Grievance\n\n"
-        f"Complaint Reference: {complaint.reference_number}\n\n"
-        f"A complaint requires your attention.\n\n"
-        f"Update status:\n{action_url}"
+    title = f"New Complaint: {complaint.reference_number}"
+    body = (
+        f"New complaint ({complaint.category}) assigned to {depot.name}.\n"
+        f"Ref: {complaint.reference_number} | Priority: {complaint.priority}"
     )
 
-    success, msg = send_sms(conductor.phone, message)
+    sms_ok = False
+    try:
+        sms_ok, _ = send_sms(depot.head_phone or DEMO_SMS_NUMBER, body)
+    except Exception as exc:
+        print(f"[WARN] Depot head SMS failed: {exc}")
 
-    # Record notification
-    notification = Notification(
-        recipient_type="CONDUCTOR",
-        recipient_id=None,  # Conductors don't have User accounts
-        complaint_id=complaint.id,
-        channel="SMS",
-        title=f"Action Required: {complaint.reference_number}",
-        message=message,
-        status="SENT" if success else "FAILED",
-        sent_at=datetime.now(timezone.utc) if success else None,
-    )
-    db.session.add(notification)
-    db.session.commit()
+    _record_notification("DEPOT_HEAD", depot_head.id, complaint.id, "EMAIL", title, body, True)
+    _record_notification("DEPOT_HEAD", depot_head.id, complaint.id, "SMS", title, body, sms_ok)
 
-    return success, msg
 
+# ---------------------------------------------------------------------------
+# In-app notification retrieval
+# ---------------------------------------------------------------------------
 
 def get_user_notifications(user_id, page=1, per_page=20):
-    """Get notifications for a user."""
+    """Get all notifications for a user, paginated."""
     pagination = (
         Notification.query
         .filter_by(recipient_id=user_id)
@@ -245,35 +491,3 @@ def get_user_notifications(user_id, page=1, per_page=20):
         "page": pagination.page,
         "pages": pagination.pages,
     }
-
-
-def notify_escalation(depot_id, complaint):
-    """Notify depot head about an escalated complaint."""
-    depot = Depot.query.get(depot_id)
-    if not depot:
-        return
-
-    depot_head = User.query.filter_by(depot_id=depot_id, role="DEPOT_HEAD").first()
-    if not depot_head:
-        return
-
-    title = f"⚠️ ESCALATED: {complaint.reference_number}"
-    message = (
-        f"Complaint {complaint.reference_number} has been ESCALATED.\n"
-        f"Category: {complaint.category}\n"
-        f"The SLA deadline has been exceeded.\n"
-        f"Please take immediate action."
-    )
-
-    notification = Notification(
-        recipient_type="DEPOT_HEAD",
-        recipient_id=depot_head.id,
-        complaint_id=complaint.id,
-        channel="IN_APP",
-        title=title,
-        message=message,
-        status="SENT",
-        sent_at=datetime.now(timezone.utc),
-    )
-    db.session.add(notification)
-    db.session.commit()

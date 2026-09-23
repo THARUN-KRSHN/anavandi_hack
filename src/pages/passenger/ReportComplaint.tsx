@@ -4,6 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { complaintSchema, COMPLAINT_CATEGORIES, type ComplaintFormData } from '../../utils/validation';
 import { createComplaint } from '../../services/complaintsService';
+import { fetchDepots } from '../../services/depotService';
+import type { DepotMaster } from '../../types/depot';
+import { DepotSelectDropdown } from '../../components/ui/DepotSelectDropdown';
 import { MiniLocationMap } from '../../components/map/MiniLocationMap';
 import {
   FileText,
@@ -19,6 +22,11 @@ export const ReportComplaint: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Depots Master Data
+  const [depots, setDepots] = useState<DepotMaster[]>([]);
+  const [originDepot, setOriginDepot] = useState<DepotMaster | undefined>();
+  const [destDepot, setDestDepot] = useState<DepotMaster | undefined>();
+
   // Geolocation & Map State (Default Ernakulam location)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number }>({
     lat: 9.9816,
@@ -28,6 +36,12 @@ export const ReportComplaint: React.FC = () => {
 
   // Photo Upload State (Base64 or Data URLs)
   const [photos, setPhotos] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchDepots().then((list) => {
+      setDepots(list);
+    });
+  }, []);
 
   const {
     register,
@@ -133,6 +147,16 @@ export const ReportComplaint: React.FC = () => {
     }
   };
 
+  const onInvalid = (formErrors: any) => {
+    console.warn('Form validation failed:', formErrors);
+    const messages = Object.values(formErrors)
+      .map((e: any) => e?.message)
+      .filter(Boolean);
+    if (messages.length > 0) {
+      alert(`Please check the following before submitting:\n\n• ${messages.join('\n• ')}`);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 pb-28">
       {/* Back Button */}
@@ -159,7 +183,7 @@ export const ReportComplaint: React.FC = () => {
       </div>
 
       <div className="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-[32px] border border-[#EAECF0] shadow-xl">
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
           
           {/* STEP 1: CATEGORY SELECTION */}
           {step === 1 && (
@@ -233,33 +257,37 @@ export const ReportComplaint: React.FC = () => {
 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#171717]">Route From *</label>
-                    <input
-                      {...register('routeFrom')}
-                      placeholder="e.g. Ernakulam Kaloor"
-                      className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#171717]"
-                    />
-                    {errors.routeFrom && <span className="text-[11px] text-red-500">{errors.routeFrom.message}</span>}
-                  </div>
+                  <DepotSelectDropdown
+                    label="Route From *"
+                    value={routeFromInput}
+                    placeholder="Search origin depot..."
+                    depots={depots}
+                    error={errors.routeFrom?.message}
+                    onChange={(val, selectedDepot) => {
+                      setValue('routeFrom', val);
+                      if (selectedDepot) setOriginDepot(selectedDepot);
+                    }}
+                  />
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#171717]">Route To *</label>
-                    <input
-                      {...register('routeTo')}
-                      placeholder="e.g. Thrissur Kokkala"
-                      className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#171717]"
-                    />
-                    {errors.routeTo && <span className="text-[11px] text-red-500">{errors.routeTo.message}</span>}
-                  </div>
+                  <DepotSelectDropdown
+                    label="Route To *"
+                    value={routeToInput}
+                    placeholder="Search destination depot..."
+                    depots={depots}
+                    error={errors.routeTo?.message}
+                    onChange={(val, selectedDepot) => {
+                      setValue('routeTo', val);
+                      if (selectedDepot) setDestDepot(selectedDepot);
+                    }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#171717]">Bus Plate Number *</label>
+                    <label className="text-xs font-bold text-[#171717]">Bus Plate Number (Optional)</label>
                     <input
                       {...register('busNumber')}
-                      placeholder="e.g. KL-07-AB-1234"
+                      placeholder="e.g. KL-07-AB-1234 (Optional)"
                       className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs font-mono font-bold uppercase text-[#D92D20] focus:outline-none focus:ring-2 focus:ring-[#D92D20]"
                     />
                     {errors.busNumber && <span className="text-[11px] text-red-500 font-medium">{errors.busNumber.message}</span>}
@@ -304,14 +332,20 @@ export const ReportComplaint: React.FC = () => {
                 )}
               </div>
 
-              {/* Mini Leaflet Map with Complainant & Estimated Bus Markers */}
+              {/* Mini Leaflet Map with Route Line & Markers */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#171717] block">
-                  Location Mini Map (Complainant Pin & Estimated Bus Position)
+                  Location Mini Map (Complainant Pin, Trip Route & Bus Position)
                 </label>
                 <MiniLocationMap
                   userLat={userCoords.lat}
                   userLng={userCoords.lng}
+                  originLat={originDepot?.lat}
+                  originLng={originDepot?.lng}
+                  originName={originDepot?.name}
+                  destLat={destDepot?.lat}
+                  destLng={destDepot?.lng}
+                  destName={destDepot?.name}
                   busLat={estimatedBusCoords.lat}
                   busLng={estimatedBusCoords.lng}
                   busNumber={busNumberInput}

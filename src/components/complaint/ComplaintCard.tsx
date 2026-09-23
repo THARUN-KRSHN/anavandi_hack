@@ -43,6 +43,19 @@ export const ComplaintCard: React.FC<ComplaintCardProps> = ({
         <p className="text-sm text-[#475467] line-clamp-2">{complaint.description}</p>
       </div>
 
+      {complaint.evidenceFiles && complaint.evidenceFiles.length > 0 && (
+        <div className="flex items-center gap-2 pt-1">
+          {complaint.evidenceFiles.map((imgUrl, i) => (
+            <img
+              key={i}
+              src={imgUrl}
+              alt={`Evidence ${i + 1}`}
+              className="w-12 h-12 object-cover rounded-lg border border-[#EAECF0]"
+            />
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#667085] pt-3 border-t border-[#EAECF0]">
         <div className="flex items-center gap-1.5 font-medium text-[#344054]">
           <Bus className="w-4 h-4 text-[#D92D20] shrink-0" />

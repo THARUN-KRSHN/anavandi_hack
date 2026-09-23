@@ -9,11 +9,56 @@ from app.services.complaint_service import (
     create_complaint,
     get_complaint_by_reference,
     get_user_complaints,
+    get_depot_complaints,
 )
-from app.models import Complaint
+from app.models import Complaint, User
 from app.services.pdf_service import generate_complaint_pdf
 
 complaint_bp = Blueprint("complaints", __name__, url_prefix="/api/complaints")
+
+
+@complaint_bp.route("", methods=["GET"])
+@login_required
+def list_complaints():
+    """GET /api/complaints — list complaints based on caller's role.
+
+    - DEPOT_HEAD: returns complaints for their depot
+    - ADMIN: returns all complaints
+    - USER: redirected to /mine (or returns their complaints)
+    """
+    user = get_current_user()
+    if not user:
+        return error_response("AUTH_REQUIRED", "Authentication required.", 401)
+
+    filters = {
+        "status": request.args.get("status"),
+        "category": request.args.get("category"),
+        "priority": request.args.get("priority"),
+        "date_from": request.args.get("date_from"),
+        "date_to": request.args.get("date_to"),
+    }
+    filters = {k: v for k, v in filters.items() if v}
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 50, type=int)
+
+    if user.role == "ADMIN":
+        # Admin sees all complaints
+        query = Complaint.query.order_by(Complaint.created_at.desc())
+        total = query.count()
+        complaints = query.offset((page - 1) * per_page).limit(per_page).all()
+        return success_response([c.to_dict(include_timeline=False) for c in complaints])
+
+    elif user.role == "DEPOT_HEAD":
+        if not user.depot_id:
+            return error_response("NO_DEPOT", "No depot assigned to this account.", 403)
+        result = get_depot_complaints(user.depot_id, filters=filters, page=page, per_page=per_page)
+        # Return just the list for frontend compatibility
+        return success_response(result.get("complaints", result))
+
+    else:
+        # Regular user — return their own complaints
+        result = get_user_complaints(user.id, page=page, per_page=per_page)
+        return success_response(result.get("complaints", result))
 
 
 @complaint_bp.route("", methods=["POST"])
@@ -62,7 +107,33 @@ def submit_complaint():
                 reference_number=existing.reference_number,
             )
 
+    # Resolve bus_number → bus_id if frontend sent text instead of ID
+    if not data.get("bus_id") and data.get("bus_number"):
+        from app.models import Bus
+        bus = Bus.query.filter(Bus.bus_number.ilike(data["bus_number"].strip())).first()
+        if bus:
+            data["bus_id"] = bus.id
+
+    # Resolve route text → route_id if frontend sent from/to text
+    if not data.get("route_id") and (data.get("route_from") or data.get("route_to")):
+        from app.models import Route
+        route_from = (data.get("route_from") or "").strip()
+        route_to = (data.get("route_to") or "").strip()
+        if route_from and route_to:
+            route = Route.query.filter(
+                Route.source.ilike(f"%{route_from}%"),
+                Route.destination.ilike(f"%{route_to}%"),
+            ).first()
+            if not route:
+                route = Route.query.filter(
+                    Route.source.ilike(f"%{route_to}%"),
+                    Route.destination.ilike(f"%{route_from}%"),
+                ).first()
+            if route:
+                data["route_id"] = route.id
+
     complaint, errors = create_complaint(data, user, image_files, upload_folder)
+
 
     if errors:
         if isinstance(errors, dict) and errors.get("code") == "DUPLICATE_REQUEST":

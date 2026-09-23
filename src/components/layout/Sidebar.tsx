@@ -18,12 +18,16 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const { user } = useAuth();
 
+  const isDepotUser = role === 'depot' || (user?.role as string) === 'depot_head';
+
   const depotLinks = [
     { to: '/depot', label: 'Reports Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
     { to: '/depot/complaints', label: 'All Reports', icon: <FileText className="w-5 h-5" /> },
     { to: '/depot/buses', label: 'Depot Buses', icon: <Bus className="w-5 h-5" /> },
     { to: '/depot/routes', label: 'Depot Routes', icon: <RouteIcon className="w-5 h-5" /> },
     { to: '/depot/outbox', label: 'SMS Outbox Log', icon: <MessageSquare className="w-5 h-5" /> },
+    { to: '/admin', label: 'State Map Overview', icon: <MapPin className="w-5 h-5" /> },
+    { to: '/admin/depots', label: 'All Depots Index', icon: <Building2 className="w-5 h-5" /> },
   ];
 
   const adminLinks = [
@@ -31,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
     { to: '/admin/depots', label: 'All Depots Index', icon: <Building2 className="w-5 h-5" /> },
   ];
 
-  const links = role === 'depot' ? depotLinks : adminLinks;
+  const links = isDepotUser ? depotLinks : adminLinks;
 
   return (
     <aside className="w-64 bg-white border-r border-[#EAECF0] shrink-0 hidden lg:block min-h-[calc(100vh-4rem)] p-4">

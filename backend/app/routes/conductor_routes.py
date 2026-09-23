@@ -6,9 +6,56 @@ The conductor interacts through the one-time SMS link.
 from flask import Blueprint, request
 
 from app.utils.helpers import success_response, error_response
-from app.services.conductor_service import get_complaint_for_conductor, process_conductor_action
+from app.services.conductor_service import (
+    get_complaint_for_conductor,
+    process_conductor_action,
+    send_conductor_sms,
+    send_conductor_email_direct,
+)
 
 conductor_bp = Blueprint("conductor", __name__, url_prefix="/api/conductor")
+
+
+@conductor_bp.route("/send-email", methods=["POST"])
+@conductor_bp.route("/send-sms", methods=["POST"])
+def send_email_action():
+    """POST /api/conductor/send-email (and legacy /send-sms alias)
+    Sends action email with temporary link to the depot head's email address for duty conductor.
+    """
+    data = request.get_json() or {}
+    complaint_id = data.get("complaint_id")
+    recipient_email = data.get("recipient_email") or "tharunkrishnachoolikattil@gmail.com"
+    conductor_name = data.get("conductor_name") or "Duty Conductor"
+    custom_token = data.get("token")
+
+    # If numeric complaint_id and complaint exists in DB
+    numeric_id = None
+    try:
+        numeric_id = int(complaint_id)
+    except (ValueError, TypeError):
+        pass
+
+    if numeric_id:
+        conductor_id = data.get("conductor_id", 1)
+        result, error = send_conductor_sms(numeric_id, conductor_id, recipient_email=recipient_email)
+        if not error and result:
+            return success_response(result)
+
+    # Fallback or client-side complaint: dispatch directly via send_conductor_email_direct
+    complaint_data = {
+        "reference_number": data.get("complaint_ref") or str(complaint_id),
+        "category": data.get("category_label") or data.get("category") or "General Issue",
+        "bus_number": data.get("bus_number") or "KSRTC Fleet",
+        "description": data.get("description") or "Passenger grievance requiring conductor response.",
+        "route": data.get("route_code") or "Kerala State Route",
+    }
+    result = send_conductor_email_direct(
+        complaint_data,
+        recipient_email=recipient_email,
+        conductor_name=conductor_name,
+        custom_token=custom_token,
+    )
+    return success_response(result)
 
 
 @conductor_bp.route("/action/<token>", methods=["GET"])

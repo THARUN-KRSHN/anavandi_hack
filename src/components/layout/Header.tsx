@@ -1,11 +1,14 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Search, User, LogOut, Shield, Building2 } from 'lucide-react';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { LanguageToggle } from '../ui/LanguageToggle';
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, logout, role } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   return (
@@ -22,14 +25,14 @@ export const Header: React.FC = () => {
             />
             <div className="flex flex-col">
               <span className="text-base sm:text-lg font-black text-[#171717] tracking-tight leading-none group-hover:text-[#D92D20] transition-colors">
-                Bus Sahayi
+                {t('app.title')}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] mt-0.5">
                 {role === 'depot_head'
                   ? 'Depot Head Portal'
                   : role === 'admin'
                   ? 'Admin Governance'
-                  : 'Kerala Public Transit'}
+                  : t('app.subtitle')}
               </span>
             </div>
           </Link>
@@ -37,6 +40,9 @@ export const Header: React.FC = () => {
 
         {/* Right Header Controls */}
         <div className="flex items-center gap-2">
+          {/* Language Toggle */}
+          <LanguageToggle />
+
           {isAuthenticated ? (
             <>
               {role === 'user' && (
@@ -48,7 +54,7 @@ export const Header: React.FC = () => {
                   <Link
                     to="/track"
                     className="w-10 h-10 rounded-full bg-white border border-[#EAECF0] shadow-sm flex items-center justify-center text-[#171717] hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
-                    title="Track Complaint"
+                    title={t('nav.track')}
                   >
                     <Search className="w-4 h-4" />
                   </Link>
@@ -56,7 +62,7 @@ export const Header: React.FC = () => {
                   <Link
                     to="/profile"
                     className="w-10 h-10 rounded-full bg-white border border-[#EAECF0] shadow-sm flex items-center justify-center text-[#171717] hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
-                    title="User Profile"
+                    title={t('nav.profile')}
                   >
                     <User className="w-4 h-4 text-emerald-600" />
                   </Link>
@@ -86,7 +92,7 @@ export const Header: React.FC = () => {
                   navigate('/auth');
                 }}
                 className="w-10 h-10 rounded-full bg-white border border-[#EAECF0] shadow-sm flex items-center justify-center text-[#667085] hover:text-[#D92D20] hover:bg-red-50 hover:scale-105 active:scale-95 transition-all"
-                title="Sign Out"
+                title={t('nav.sign_out')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -96,7 +102,7 @@ export const Header: React.FC = () => {
               to="/auth"
               className="px-4 py-2 bg-[#171717] text-white text-xs font-bold rounded-full shadow-md hover:bg-black transition-all"
             >
-              Sign In
+              {t('nav.sign_in')}
             </Link>
           )}
         </div>

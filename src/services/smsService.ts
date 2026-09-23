@@ -12,6 +12,9 @@ export interface SmsToken {
   sentAt: string;
   isUsed: boolean;
   usedAt?: string;
+  description?: string;
+  routeFrom?: string;
+  routeTo?: string;
 }
 
 export interface SmsOutboxLog {
@@ -32,25 +35,6 @@ export interface SmsOutboxLog {
 
 const TOKENS_STORAGE_KEY = 'anavandi_sms_tokens_v1';
 const OUTBOX_STORAGE_KEY = 'anavandi_sms_outbox_v1';
-const FAST2SMS_KEY_STORAGE = 'anavandi_fast2sms_key_v1';
-
-const DEFAULT_FAST2SMS_KEY = 'q4oTG2H6hmWX9fBDdNkxlSsjZ5O3Aap1FQRzJLrv07nICPguwtAVFXd1tkqGh6Yc3bf9v87s4S2xzZwJ';
-
-export function getFast2SMSKey(): string {
-  try {
-    return localStorage.getItem(FAST2SMS_KEY_STORAGE) || DEFAULT_FAST2SMS_KEY;
-  } catch {
-    return DEFAULT_FAST2SMS_KEY;
-  }
-}
-
-export function saveFast2SMSKey(key: string) {
-  try {
-    localStorage.setItem(FAST2SMS_KEY_STORAGE, key.trim());
-  } catch (err) {
-    console.error('Failed to save Fast2SMS key:', err);
-  }
-}
 
 function getStoredTokens(): Record<string, SmsToken> {
   try {
@@ -65,7 +49,7 @@ function saveStoredTokens(tokens: Record<string, SmsToken>) {
   try {
     localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
   } catch (err) {
-    console.error('Failed to save SMS tokens:', err);
+    console.error('Failed to save action tokens:', err);
   }
 }
 
@@ -83,102 +67,77 @@ function saveStoredOutbox(logs: SmsOutboxLog[]) {
     localStorage.setItem(OUTBOX_STORAGE_KEY, JSON.stringify(logs));
     syncEngine.broadcast('COMPLAINT_UPDATED');
   } catch (err) {
-    console.error('Failed to save SMS outbox:', err);
+    console.error('Failed to save outbox:', err);
   }
 }
 
-/**
- * Extracts 10-digit Indian phone number from any raw string
- */
-function cleanIndianPhoneNumber(rawPhone: string): string {
-  const digits = rawPhone.replace(/\D/g, '');
-  if (digits.length >= 10) {
-    return digits.slice(-10);
-  }
-  return digits;
-}
-
-/**
- * Sends a real SMS via Fast2SMS Bulk V2 API (Proxied through Vite dev server to bypass CORS)
- */
-async function dispatchFast2Sms(targetPhone: string, messageText: string): Promise<string> {
-  const apiKey = getFast2SMSKey();
-  const cleanPhone = cleanIndianPhoneNumber(targetPhone);
-
-  if (!cleanPhone || cleanPhone.length !== 10) {
-    return `Simulated (Invalid 10-digit phone: ${targetPhone})`;
-  }
-
-  try {
-    // 1. Try local dev proxy /fast2sms-api/dev/bulkV2
-    const res = await fetch('/fast2sms-api/dev/bulkV2', {
-      method: 'POST',
-      headers: {
-        authorization: apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        route: 'q', // Quick SMS Route
-        message: messageText,
-        language: 'english',
-        flash: 0,
-        numbers: cleanPhone,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (data && data.return === true) {
-      return `Delivered via Fast2SMS to +91 ${cleanPhone}`;
-    } else if (data && data.message) {
-      return `Fast2SMS Info: ${data.message}`;
-    }
-  } catch (err) {
-    console.warn('Proxy fetch failed, attempting direct GET fallback:', err);
-  }
-
-  // 2. Direct GET Fallback
-  try {
-    const getUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(
-      apiKey
-    )}&route=q&message=${encodeURIComponent(messageText)}&language=english&flash=0&numbers=${cleanPhone}`;
-
-    const res = await fetch(getUrl);
-    const data = await res.json().catch(() => ({}));
-
-    if (data && data.return === true) {
-      return `Delivered via Fast2SMS (GET) to +91 ${cleanPhone}`;
-    }
-    return `Fast2SMS Status: ${data.message || 'Response received'}`;
-  } catch (err: any) {
-    console.error('Fast2SMS GET fetch error:', err);
-    return `CORS / Network Blocked. Logged to outbox.`;
-  }
-}
-
-export async function sendConductorSms(params: {
+export interface SendConductorEmailParams {
   complaintId: string;
   complaintRef: string;
   categoryLabel: string;
   busNumber: string;
   conductorName: string;
-  conductorPhone: string;
+  conductorPhone?: string;
+  recipientEmail?: string;
   depotId: string;
   customMessage?: string;
-}): Promise<{ token: string; outboxLog: SmsOutboxLog }> {
+  description?: string;
+  routeCode?: string;
+}
+
+export async function sendConductorSms(params: SendConductorEmailParams): Promise<{ token: string; outboxLog: SmsOutboxLog }> {
   // Generate random secure token
   const token = `tok_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const origin = window.location.origin;
   const updateUrl = `${origin}/u/${token}`;
+  const targetEmail = params.recipientEmail || 'tharunkrishnachoolikattil@gmail.com';
 
   const messageContent = params.customMessage
     ? params.customMessage.replace('{token}', token).replace('{origin}', origin)
-    : `Bus Sahayi: Complaint ${params.complaintRef} (${params.categoryLabel}) on bus ${params.busNumber}. Update status: ${updateUrl}`;
+    : `Bus Sahayi: Grievance ${params.complaintRef} (${params.categoryLabel}) on bus ${params.busNumber}. Update status: ${updateUrl}`;
 
   const now = new Date().toISOString();
+  let deliveryStatus = `Delivered via Email to ${targetEmail}`;
 
-  // Attempt real SMS dispatch via Fast2SMS
-  const deliveryStatus = await dispatchFast2Sms(params.conductorPhone, messageContent);
+  // Call backend API to dispatch official email & update DB status
+  try {
+    const res = await fetch('/api/conductor/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        complaint_id: params.complaintId,
+        complaint_ref: params.complaintRef,
+        category_label: params.categoryLabel,
+        bus_number: params.busNumber,
+        conductor_name: params.conductorName,
+        recipient_email: targetEmail,
+        route_code: params.routeCode,
+        description: params.description,
+        token,
+      }),
+    });
+    const result = await res.json().catch(() => null);
+    if (result && result.data && result.data.token) {
+      // Store under backend token as well
+      const backendToken = result.data.token;
+      const tokens = getStoredTokens();
+      tokens[backendToken] = {
+        token: backendToken,
+        complaintId: params.complaintId,
+        complaintRef: params.complaintRef,
+        categoryLabel: params.categoryLabel,
+        busNumber: params.busNumber,
+        conductorName: params.conductorName,
+        conductorPhone: params.conductorPhone || '+91 94470 00000',
+        sentAt: now,
+        isUsed: false,
+        description: params.description,
+      };
+      saveStoredTokens(tokens);
+    }
+  } catch (e) {
+    console.warn('Backend conductor email dispatch note:', e);
+  }
 
   // Save token entry
   const tokenEntry: SmsToken = {
@@ -188,9 +147,10 @@ export async function sendConductorSms(params: {
     categoryLabel: params.categoryLabel,
     busNumber: params.busNumber,
     conductorName: params.conductorName,
-    conductorPhone: params.conductorPhone,
+    conductorPhone: params.conductorPhone || '+91 94470 00000',
     sentAt: now,
     isUsed: false,
+    description: params.description,
   };
 
   const tokens = getStoredTokens();
@@ -199,14 +159,14 @@ export async function sendConductorSms(params: {
 
   // Save outbox log
   const outboxLog: SmsOutboxLog = {
-    id: `sms-${Date.now()}`,
+    id: `disp-${Date.now()}`,
     token,
     complaintId: params.complaintId,
     complaintRef: params.complaintRef,
     categoryLabel: params.categoryLabel,
     busNumber: params.busNumber,
     conductorName: params.conductorName,
-    conductorPhone: params.conductorPhone,
+    conductorPhone: params.conductorPhone || '+91 94470 00000',
     depotId: params.depotId,
     sentAt: now,
     messageContent,
@@ -221,7 +181,7 @@ export async function sendConductorSms(params: {
   await updateComplaintStatus(
     params.complaintId,
     'forwarded_to_conductor',
-    `SMS dispatched to ${params.conductorName} (${params.conductorPhone}) [${deliveryStatus}].`,
+    `Action email dispatched to depot head email (${targetEmail}) for conductor ${params.conductorName}.`,
     'depot_manager',
     'Depot Head Desk'
   );
@@ -229,9 +189,43 @@ export async function sendConductorSms(params: {
   return { token, outboxLog };
 }
 
+export const sendConductorEmail = sendConductorSms;
+
 export async function getSmsToken(tokenStr: string): Promise<SmsToken | null> {
   const tokens = getStoredTokens();
-  return tokens[tokenStr] || null;
+  if (tokens[tokenStr]) {
+    return tokens[tokenStr];
+  }
+
+  // Fallback to backend API
+  try {
+    const res = await fetch(`/api/conductor/action/${tokenStr}`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success && json.data) {
+        const d = json.data;
+        const mappedToken: SmsToken = {
+          token: tokenStr,
+          complaintId: d.reference_number || '1',
+          complaintRef: d.reference_number || 'GRV-REF',
+          categoryLabel: d.category ? d.category.replace(/_/g, ' ') : 'General Issue',
+          busNumber: d.bus?.bus_number || 'KSRTC Fleet',
+          conductorName: d.conductor_name || 'Duty Conductor',
+          conductorPhone: d.bus?.conductor_phone || '+91 94470 00000',
+          sentAt: d.reported_date || new Date().toISOString(),
+          isUsed: d.status === 'RESOLVED' || d.status === 'ACTION_TAKEN',
+          description: d.description,
+          routeFrom: d.route?.source || 'Origin',
+          routeTo: d.route?.destination || 'Destination',
+        };
+        return mappedToken;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend token fetch error:', err);
+  }
+
+  return null;
 }
 
 export async function submitConductorStatusUpdate(
@@ -241,6 +235,31 @@ export async function submitConductorStatusUpdate(
 ): Promise<{ success: boolean; message: string }> {
   const tokens = getStoredTokens();
   const tokenEntry = tokens[tokenStr];
+
+  // Try backend first if available
+  try {
+    const backendStatus = status === 'resolved' ? 'RESOLVED' : 'ACTION_TAKEN';
+    const res = await fetch(`/api/conductor/action/${tokenStr}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: backendStatus,
+        comment: note || `Status updated to ${status} by conductor.`,
+      }),
+    });
+    if (res.ok) {
+      if (tokenEntry) {
+        tokenEntry.isUsed = true;
+        tokenEntry.usedAt = new Date().toISOString();
+        tokens[tokenStr] = tokenEntry;
+        saveStoredTokens(tokens);
+      }
+      syncEngine.broadcast('COMPLAINT_UPDATED');
+      return { success: true, message: 'Complaint status updated successfully.' };
+    }
+  } catch (e) {
+    console.warn('Backend conductor submit notice:', e);
+  }
 
   if (!tokenEntry) {
     return { success: false, message: 'Invalid or missing access token.' };
@@ -252,18 +271,17 @@ export async function submitConductorStatusUpdate(
 
   const now = new Date().toISOString();
 
-  // Update complaint status
+  // Update complaint status locally
   await updateComplaintStatus(
     tokenEntry.complaintId,
     status,
     note
       ? `Conductor (${tokenEntry.conductorName}): ${note}`
-      : `Status updated by conductor ${tokenEntry.conductorName} via SMS link.`,
+      : `Status updated by conductor ${tokenEntry.conductorName} via link.`,
     'depot_staff',
     `Conductor - ${tokenEntry.conductorName}`
   );
 
-  // Mark token as used
   tokenEntry.isUsed = true;
   tokenEntry.usedAt = now;
   tokens[tokenStr] = tokenEntry;

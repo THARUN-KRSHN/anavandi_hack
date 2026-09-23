@@ -4,17 +4,20 @@ import { fetchComplaints } from '../../services/complaintsService';
 import type { Complaint } from '../../types/complaint';
 import { ComplaintCard } from '../../components/complaint/ComplaintCard';
 import { ShieldAlert, AlertOctagon } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export const DepotEscalations: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [escalatedList, setEscalatedList] = useState<Complaint[]>([]);
 
   useEffect(() => {
-    fetchComplaints({ depotId: 'DEP-TVM' }).then((all) => {
+    const depotId = user?.depotId || 'all';
+    fetchComplaints({ depotId }).then((all) => {
       const filtered = all.filter((c) => c.status === 'escalated' || c.priority === 'critical');
       setEscalatedList(filtered);
     });
-  }, []);
+  }, [user?.depotId]);
 
   return (
     <div className="space-y-6">

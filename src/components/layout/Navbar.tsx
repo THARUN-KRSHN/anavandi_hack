@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FileText, Menu, X } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
+import { LanguageToggle } from '../ui/LanguageToggle';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { t } = useLanguage();
 
   const isDepot = location.pathname.startsWith('/depot');
   const isAdmin = location.pathname.startsWith('/admin');
@@ -19,10 +22,10 @@ export const Navbar: React.FC = () => {
             <img src="/logo.png" alt="Bus Sahayi Logo" className="w-10 h-10 object-contain rounded-xl bg-white p-0.5 border border-[#EAECF0] shadow-sm shadow-emerald-100" />
             <div>
               <span className="font-extrabold text-xl text-[#171717] tracking-tight block leading-none">
-                Bus Sahayi
+                {t('app.title')}
               </span>
               <span className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">
-                Grievance & Depot Accountability
+                {t('app.subtitle')}
               </span>
             </div>
           </Link>
@@ -37,7 +40,7 @@ export const Navbar: React.FC = () => {
                     location.pathname === '/' ? 'text-[#D92D20] font-bold' : 'text-[#475467] hover:text-[#171717]'
                   }`}
                 >
-                  Home
+                  {t('nav.home')}
                 </Link>
                 <Link
                   to="/report"
@@ -45,7 +48,7 @@ export const Navbar: React.FC = () => {
                     location.pathname === '/report' ? 'text-[#D92D20] font-bold' : 'text-[#475467] hover:text-[#171717]'
                   }`}
                 >
-                  Report Issue
+                  {t('nav.report')}
                 </Link>
                 <Link
                   to="/track"
@@ -53,44 +56,45 @@ export const Navbar: React.FC = () => {
                     location.pathname.startsWith('/track') ? 'text-[#D92D20] font-bold' : 'text-[#475467] hover:text-[#171717]'
                   }`}
                 >
-                  Track Grievance
+                  {t('nav.track')}
                 </Link>
               </>
             )}
 
             {isDepot && (
               <>
-                <Link to="/depot" className="text-[#475467] hover:text-[#171717]">Dashboard</Link>
-                <Link to="/depot/complaints" className="text-[#475467] hover:text-[#171717]">Case Queue</Link>
-                <Link to="/depot/escalations" className="text-[#475467] hover:text-[#171717]">Escalations</Link>
-                <Link to="/depot/crew" className="text-[#475467] hover:text-[#171717]">Crew Directory</Link>
-                <Link to="/depot/buses" className="text-[#475467] hover:text-[#171717]">Fleet Master</Link>
+                <Link to="/depot" className="text-[#475467] hover:text-[#171717]">{t('nav.depot_dashboard')}</Link>
+                <Link to="/depot/complaints" className="text-[#475467] hover:text-[#171717]">{t('nav.case_queue')}</Link>
+                <Link to="/depot/escalations" className="text-[#475467] hover:text-[#171717]">{t('nav.escalations')}</Link>
+                <Link to="/depot/crew" className="text-[#475467] hover:text-[#171717]">{t('nav.crew_directory')}</Link>
+                <Link to="/depot/buses" className="text-[#475467] hover:text-[#171717]">{t('nav.fleet_master')}</Link>
               </>
             )}
 
             {isAdmin && (
               <>
-                <Link to="/admin" className="text-[#475467] hover:text-[#171717]">Overview</Link>
-                <Link to="/admin/analytics" className="text-[#475467] hover:text-[#171717]">Analytics & SLA</Link>
-                <Link to="/admin/complaints" className="text-[#475467] hover:text-[#171717]">All Cases</Link>
-                <Link to="/admin/depots" className="text-[#475467] hover:text-[#171717]">Depot Index</Link>
-                <Link to="/admin/routes" className="text-[#475467] hover:text-[#171717]">Route Hotspots</Link>
+                <Link to="/admin" className="text-[#475467] hover:text-[#171717]">{t('nav.admin_overview')}</Link>
+                <Link to="/admin/analytics" className="text-[#475467] hover:text-[#171717]">{t('nav.analytics')}</Link>
+                <Link to="/admin/complaints" className="text-[#475467] hover:text-[#171717]">{t('nav.all_cases')}</Link>
+                <Link to="/admin/depots" className="text-[#475467] hover:text-[#171717]">{t('nav.depot_index')}</Link>
+                <Link to="/admin/routes" className="text-[#475467] hover:text-[#171717]">{t('nav.route_hotspots')}</Link>
               </>
             )}
           </div>
 
           {/* Right Action CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageToggle />
             {!isDepot && !isAdmin && (
               <Link to="/report">
                 <Button variant="primary" icon={<FileText className="w-4 h-4" />}>
-                  Report an Issue
+                  {t('nav.report')}
                 </Button>
               </Link>
             )}
             {isDepot && (
               <span className="text-xs font-semibold text-white bg-[#171717] px-3 py-1.5 rounded-xl border border-gray-700">
-                Depot Desk: Trivandrum Central
+                Depot Desk
               </span>
             )}
             {isAdmin && (
@@ -101,7 +105,8 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile Hamburger Menu Toggle */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            <LanguageToggle />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-[#475467] hover:text-[#171717] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl"
@@ -123,42 +128,42 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block p-3 rounded-xl hover:bg-[#F9FAFB] text-sm font-medium text-[#171717]"
               >
-                Home
+                {t('nav.home')}
               </Link>
               <Link
                 to="/report"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block p-3 rounded-xl bg-red-50 text-sm font-bold text-[#D92D20]"
               >
-                Report an Issue
+                {t('nav.report')}
               </Link>
               <Link
                 to="/track"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block p-3 rounded-xl hover:bg-[#F9FAFB] text-sm font-medium text-[#171717]"
               >
-                Track Existing Grievance
+                {t('nav.track')}
               </Link>
             </>
           )}
 
           {isDepot && (
             <>
-              <Link to="/depot" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Depot Dashboard</Link>
-              <Link to="/depot/complaints" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Case Queue</Link>
-              <Link to="/depot/escalations" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Escalations</Link>
-              <Link to="/depot/crew" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Crew Roster</Link>
-              <Link to="/depot/buses" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Fleet Master</Link>
+              <Link to="/depot" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.depot_dashboard')}</Link>
+              <Link to="/depot/complaints" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.case_queue')}</Link>
+              <Link to="/depot/escalations" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.escalations')}</Link>
+              <Link to="/depot/crew" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.crew_directory')}</Link>
+              <Link to="/depot/buses" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.fleet_master')}</Link>
             </>
           )}
 
           {isAdmin && (
             <>
-              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Overview</Link>
-              <Link to="/admin/analytics" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Analytics</Link>
-              <Link to="/admin/complaints" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">All Cases</Link>
-              <Link to="/admin/depots" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Depot Index</Link>
-              <Link to="/admin/routes" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">Route Hotspots</Link>
+              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.admin_overview')}</Link>
+              <Link to="/admin/analytics" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.analytics')}</Link>
+              <Link to="/admin/complaints" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.all_cases')}</Link>
+              <Link to="/admin/depots" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.depot_index')}</Link>
+              <Link to="/admin/routes" onClick={() => setMobileMenuOpen(false)} className="block p-3 rounded-xl hover:bg-[#F9FAFB]">{t('nav.route_hotspots')}</Link>
             </>
           )}
         </div>

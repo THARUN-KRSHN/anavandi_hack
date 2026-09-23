@@ -6,9 +6,11 @@ import { ComplaintCard } from '../../components/complaint/ComplaintCard';
 import { Input, Select } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Search, Filter, RefreshCw } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export const DepotComplaintsQueue: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,6 +27,7 @@ export const DepotComplaintsQueue: React.FC = () => {
         status: statusFilter,
         category: categoryFilter,
         priority: priorityFilter,
+        depotId: user?.depotId || 'all',
         search: searchQuery,
       });
       setComplaints(res);
@@ -37,7 +40,7 @@ export const DepotComplaintsQueue: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [statusFilter, categoryFilter, priorityFilter, searchQuery]);
+  }, [statusFilter, categoryFilter, priorityFilter, searchQuery, user?.depotId]);
 
   return (
     <div className="space-y-6">

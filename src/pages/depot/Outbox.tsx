@@ -44,23 +44,23 @@ export const SmsOutboxLogPage: React.FC = () => {
           DISPATCH AUDIT LOG
         </span>
         <h1 className="text-2xl font-black text-[#171717] tracking-tight">
-          SMS Outbox Log
+          Conductor Dispatch Outbox
         </h1>
         <p className="text-xs text-[#667085] mt-0.5">
-          History of simulated SMS links sent to duty conductors for grievance resolution.
+          Audit log of secure, temporary action links dispatched via email to the depot head for duty conductors.
         </p>
       </div>
 
       {loading ? (
         <div className="p-12 text-center text-xs font-bold text-[#667085]">
-          Loading outbox logs...
+          Loading dispatch logs...
         </div>
       ) : logs.length === 0 ? (
         <div className="p-12 text-center text-[#667085] bg-white rounded-[24px] border border-[#EAECF0]">
           <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-[#171717]">No SMS messages sent yet</p>
+          <p className="text-sm font-bold text-[#171717]">No conductor action links dispatched yet</p>
           <p className="text-xs text-[#667085] mt-1">
-            Dispatch SMS updates to conductors directly from report detail pages.
+            Dispatch temporary update links to conductors directly from grievance detail pages.
           </p>
         </div>
       ) : (
@@ -94,12 +94,20 @@ export const SmsOutboxLogPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Simulated Mobile SMS Bubble */}
+                {/* Dispatch Status */}
+                {log.deliveryStatus && (
+                  <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] font-bold text-blue-800 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    {log.deliveryStatus}
+                  </div>
+                )}
+
+                {/* Simulated Message Bubble */}
                 <div className="bg-gray-100 p-4 rounded-2xl border border-gray-200 space-y-2 relative">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#667085] uppercase">
-                    <Smartphone className="w-3.5 h-3.5 text-[#D92D20]" /> Phone SMS View
+                    <Smartphone className="w-3.5 h-3.5 text-[#D92D20]" /> Dispatched Link Content
                   </div>
-                  <p className="text-xs font-mono text-[#171717] leading-relaxed">
+                  <p className="text-xs font-mono text-[#171717] leading-relaxed break-all">
                     {log.messageContent}
                   </p>
                 </div>

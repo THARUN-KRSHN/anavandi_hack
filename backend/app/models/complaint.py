@@ -4,15 +4,37 @@ from datetime import datetime, timezone
 from app.extensions import db
 
 
-# Valid categories
+# Valid categories (canonical uppercase values stored in DB)
 COMPLAINT_CATEGORIES = [
     "CLEANLINESS",
     "UNSAFE_DRIVING",
     "OVERCROWDING",
     "MISSED_STOP",
     "CONCESSION_DENIAL",
+    "CONDUCTOR_STAFF",
+    "DRIVER",
+    "TICKETING",
+    "BUS_CONDITION",
+    "SAFETY",
+    "ROUTE_TIMING",
     "OTHER",
 ]
+
+# Map frontend/alternate category values → canonical DB values
+CATEGORY_NORMALIZER = {
+    "cleanliness": "CLEANLINESS",
+    "unsafe_driving": "UNSAFE_DRIVING",
+    "overcrowding": "OVERCROWDING",
+    "missed_stop": "MISSED_STOP",
+    "concession_denial": "CONCESSION_DENIAL",
+    "conductor_staff": "CONDUCTOR_STAFF",
+    "driver": "DRIVER",
+    "ticketing": "TICKETING",
+    "bus_condition": "BUS_CONDITION",
+    "safety": "SAFETY",
+    "route_timing": "ROUTE_TIMING",
+    "other": "OTHER",
+}
 
 # Valid statuses — controlled state machine
 COMPLAINT_STATUSES = [
