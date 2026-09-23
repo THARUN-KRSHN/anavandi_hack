@@ -1,6 +1,6 @@
 import type { SystemMetrics, TrendPoint, CategoryDistribution, DepotWorkload, RecurringIssueAlert } from '../types/analytics';
 import { fetchComplaints } from './complaintsService';
-import { mockDepots } from '../data/mock/depotsData';
+import { mockKeralaDepots } from '../data/mock/depotsData';
 
 export async function fetchSystemMetrics(): Promise<SystemMetrics> {
   const complaints = await fetchComplaints();
@@ -47,13 +47,13 @@ export async function fetchCategoryDistribution(): Promise<CategoryDistribution[
 }
 
 export async function fetchDepotWorkload(): Promise<DepotWorkload[]> {
-  return mockDepots.map((d) => ({
+  return mockKeralaDepots.map((d) => ({
     depotId: d.id,
     depotName: d.name,
     open: d.openComplaints,
-    overdue: d.overdueComplaints,
-    resolvedThisWeek: d.resolvedToday * 5,
-    slaCompliance: Math.round(100 - (d.overdueComplaints / (d.openComplaints || 1)) * 100),
+    overdue: d.totalComplaints - d.resolvedComplaints,
+    resolvedThisWeek: d.resolvedComplaints * 5,
+    slaCompliance: Math.round(100 - ((d.totalComplaints - d.resolvedComplaints) / (d.totalComplaints || 1)) * 100),
   }));
 }
 

@@ -2,47 +2,45 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Inbox,
-  AlertOctagon,
-  Users,
+  FileText,
   Bus,
-  BarChart3,
-  Building2,
+  Route as RouteIcon,
+  MessageSquare,
   MapPin,
-  FileSpreadsheet,
+  Building2,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   role: 'depot' | 'admin';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
+  const { user } = useAuth();
+
   const depotLinks = [
-    { to: '/depot', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
-    { to: '/depot/complaints', label: 'Case Queue', icon: <Inbox className="w-5 h-5" /> },
-    { to: '/depot/escalations', label: 'Overdue & Escalated', icon: <AlertOctagon className="w-5 h-5" /> },
-    { to: '/depot/crew', label: 'Authorized Crew (PEN)', icon: <Users className="w-5 h-5" /> },
-    { to: '/depot/buses', label: 'Depot Fleet Master', icon: <Bus className="w-5 h-5" /> },
+    { to: '/depot', label: 'Reports Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
+    { to: '/depot/complaints', label: 'All Reports', icon: <FileText className="w-5 h-5" /> },
+    { to: '/depot/buses', label: 'Depot Buses', icon: <Bus className="w-5 h-5" /> },
+    { to: '/depot/routes', label: 'Depot Routes', icon: <RouteIcon className="w-5 h-5" /> },
+    { to: '/depot/outbox', label: 'SMS Outbox Log', icon: <MessageSquare className="w-5 h-5" /> },
   ];
 
   const adminLinks = [
-    { to: '/admin', label: 'System Overview', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
-    { to: '/admin/analytics', label: 'Analytics & SLA Trends', icon: <BarChart3 className="w-5 h-5" /> },
-    { to: '/admin/complaints', label: 'Grievance Audit Log', icon: <FileSpreadsheet className="w-5 h-5" /> },
-    { to: '/admin/depots', label: 'Depots Performance', icon: <Building2 className="w-5 h-5" /> },
-    { to: '/admin/routes', label: 'Route Hotspots', icon: <MapPin className="w-5 h-5" /> },
+    { to: '/admin', label: 'State Map Overview', icon: <MapPin className="w-5 h-5" />, end: true },
+    { to: '/admin/depots', label: 'All Depots Index', icon: <Building2 className="w-5 h-5" /> },
   ];
 
   const links = role === 'depot' ? depotLinks : adminLinks;
 
   return (
     <aside className="w-64 bg-white border-r border-[#EAECF0] shrink-0 hidden lg:block min-h-[calc(100vh-4rem)] p-4">
-      <div className="mb-6 px-3 py-2 bg-[#F9FAFB] rounded-xl border border-[#EAECF0]">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#667085] block">
-          {role === 'depot' ? 'Depot Operations Desk' : 'Admin Governance'}
+      <div className="mb-6 px-3 py-3 bg-[#F9FAFB] rounded-2xl border border-[#EAECF0]">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#667085] block">
+          {role === 'depot' ? 'DEPOT HEAD PORTAL' : 'ADMIN GOVERNANCE'}
         </span>
-        <span className="text-xs font-semibold text-[#171717]">
-          {role === 'depot' ? 'Trivandrum Central (TVM)' : 'Kerala State Transport Head Office'}
+        <span className="text-xs font-black text-[#171717] block mt-0.5 truncate">
+          {role === 'depot' ? (user?.depotName || 'Depot Headquarters') : 'Kerala State HQ'}
         </span>
       </div>
 
@@ -53,9 +51,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
             to={link.to}
             end={link.end}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${
+              `flex items-center gap-3 px-3.5 py-3 rounded-2xl font-bold text-xs transition-all ${
                 isActive
-                  ? 'bg-red-50 text-[#D92D20] font-bold shadow-xs border border-red-100'
+                  ? 'bg-red-50 text-[#D92D20] shadow-xs border border-red-100'
                   : 'text-[#475467] hover:bg-[#F9FAFB] hover:text-[#171717]'
               }`
             }

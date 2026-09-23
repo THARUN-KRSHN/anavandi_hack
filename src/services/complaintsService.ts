@@ -3,7 +3,8 @@ import { initialComplaints } from '../data/mock/complaintsData';
 import { generateReferenceNumber } from '../utils/dateUtils';
 import { getDutyRosterForBus } from './crewService';
 import { mockBuses } from '../data/mock/busesData';
-
+import { syncEngine } from './syncEngine';
+import { addNotification } from './notificationService';
 const STORAGE_KEY = 'anavandi_complaints_v1';
 
 function getStoredComplaints(): Complaint[] {
@@ -22,6 +23,7 @@ function getStoredComplaints(): Complaint[] {
 function saveStoredComplaints(complaints: Complaint[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(complaints));
+    syncEngine.broadcast('COMPLAINT_UPDATED');
   } catch (err) {
     console.error('Failed to save complaints to localStorage:', err);
   }
@@ -151,6 +153,16 @@ export async function createComplaint(dto: CreateComplaintDTO): Promise<Complain
 
   const updated = [newComplaint, ...complaints];
   saveStoredComplaints(updated);
+
+  // Trigger real-time notification for the assigned depot head
+  addNotification(
+    assignedDepotId,
+    `New Complaint Filed: ${ref}`,
+    `${dto.categoryLabel} issue reported on bus ${newComplaint.busNumber || 'Route Service'}.`,
+    'complaint',
+    ref
+  ).catch(console.error);
+
   return newComplaint;
 }
 

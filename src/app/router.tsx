@@ -1,51 +1,135 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ProtectedRoute } from '../components/layout/ProtectedRoute';
+import { AuthPage } from '../pages/AuthPage';
 
 // Passenger Pages
 import { Home as PassengerHome } from '../pages/passenger/Home';
 import { ReportComplaint } from '../pages/passenger/ReportComplaint';
 import { ComplaintSubmitted } from '../pages/passenger/ComplaintSubmitted';
 import { TrackComplaint } from '../pages/passenger/TrackComplaint';
+import { ProfilePage } from '../pages/passenger/ProfilePage';
 
-// Depot Pages
+// Depot Head Pages
 import { DepotDashboard } from '../pages/depot/Dashboard';
-import { DepotComplaintsQueue } from '../pages/depot/Complaints';
 import { ComplaintDetails } from '../pages/depot/ComplaintDetails';
-import { DepotEscalations } from '../pages/depot/Escalations';
-import { DepotCrewDirectory } from '../pages/depot/Crew';
 import { DepotBusesMaster } from '../pages/depot/Buses';
+import { DepotRoutes } from '../pages/depot/Routes';
+import { SmsOutboxLogPage } from '../pages/depot/Outbox';
+
+// Conductor Update Page (Public, mobile-first)
+import { ConductorUpdatePage } from '../pages/conductor/ConductorUpdatePage';
 
 // Admin Pages
 import { AdminDashboard } from '../pages/admin/Dashboard';
-import { AdminAnalytics } from '../pages/admin/Analytics';
-import { AdminComplaintsLog } from '../pages/admin/Complaints';
-import { AdminDepotsIndex } from '../pages/admin/Depots';
-import { AdminRoutesAnalytics } from '../pages/admin/Routes';
+import { AdminDepotDetail } from '../pages/admin/AdminDepotDetail';
 
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Passenger Routes */}
+      {/* Public Auth Route */}
+      <Route path="/auth" element={<AuthPage />} />
+
+      {/* Passenger Mobile-First Routes */}
       <Route path="/" element={<PassengerHome />} />
-      <Route path="/report" element={<ReportComplaint />} />
+      <Route
+        path="/report"
+        element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <ReportComplaint />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/report/success" element={<ComplaintSubmitted />} />
       <Route path="/track" element={<TrackComplaint />} />
       <Route path="/track/:id" element={<TrackComplaint />} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Depot Portal Routes */}
-      <Route path="/depot" element={<DepotDashboard />} />
-      <Route path="/depot/complaints" element={<DepotComplaintsQueue />} />
-      <Route path="/depot/complaints/:id" element={<ComplaintDetails />} />
-      <Route path="/depot/escalations" element={<DepotEscalations />} />
-      <Route path="/depot/crew" element={<DepotCrewDirectory />} />
-      <Route path="/depot/buses" element={<DepotBusesMaster />} />
+      {/* Conductor Public SMS Update Token Page */}
+      <Route path="/u/:token" element={<ConductorUpdatePage />} />
 
-      {/* Admin Portal Routes */}
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/analytics" element={<AdminAnalytics />} />
-      <Route path="/admin/complaints" element={<AdminComplaintsLog />} />
-      <Route path="/admin/depots" element={<AdminDepotsIndex />} />
-      <Route path="/admin/routes" element={<AdminRoutesAnalytics />} />
+      {/* Depot Portal Routes (Protected for Depot Head) */}
+      <Route
+        path="/depot"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/complaints"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/complaints/:id"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <ComplaintDetails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/buses"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotBusesMaster />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/routes"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotRoutes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/outbox"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <SmsOutboxLogPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin Portal Routes (Protected for Admin) */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/depots"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/depot/:depotId"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDepotDetail />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Fallback Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

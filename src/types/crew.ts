@@ -22,12 +22,16 @@ export interface DutyRoster {
   busNumber: string;
   routeId: string;
   routeName: string;
+  routeCode?: string;
   depotId: string;
   conductorPen: string;
   conductorName: string;
+  conductorPhone?: string;
   driverPen: string;
   driverName: string;
+  driverPhone?: string;
   startTime: string; // e.g. 06:00
   endTime: string;   // e.g. 14:00
+  shiftSchedule?: string;
   status: 'scheduled' | 'on_duty' | 'completed';
 }

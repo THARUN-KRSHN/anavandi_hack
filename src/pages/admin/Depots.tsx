@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { fetchDepotWorkload } from '../../services/analyticsService';
-import { mockDepots } from '../../data/mock/depotsData';
+import { mockKeralaDepots } from '../../data/mock/depotsData';
 import type { DepotWorkload } from '../../types/analytics';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
+import type { DepotMaster } from '../../types/depot';
 import { Building2, Phone, Mail, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const AdminDepotsIndex: React.FC = () => {
+  const navigate = useNavigate();
   const [workloads, setWorkloads] = useState<DepotWorkload[]>([]);
 
   useEffect(() => {
@@ -14,21 +15,30 @@ export const AdminDepotsIndex: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       <div className="pb-4 border-b border-[#EAECF0]">
-        <h1 className="text-2xl font-extrabold text-[#171717] tracking-tight">
+        <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#667085] block">
+          STATE WIDE DIRECTORY
+        </span>
+        <h1 className="text-2xl font-black text-[#171717] tracking-tight">
           Depot Performance Index
         </h1>
-        <p className="text-xs text-[#667085] mt-1">
-          Workload, fleet volume, and SLA compliance metrics for all depots.
+        <p className="text-xs text-[#667085] mt-0.5">
+          Workload, fleet volume, and backlog metrics for all 6 Kerala depots.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mockDepots.map((depot) => {
+        {mockKeralaDepots.map((depot: DepotMaster) => {
           const wl = workloads.find((w) => w.depotId === depot.id);
+          const unresolved = depot.totalComplaints - depot.resolvedComplaints;
+
           return (
-            <Card key={depot.id} className="space-y-4">
+            <div
+              key={depot.id}
+              onClick={() => navigate(`/admin/depot/${depot.id}`)}
+              className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4 hover:border-gray-300 transition-all cursor-pointer"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-red-50 text-[#D92D20] rounded-2xl font-bold">
@@ -42,23 +52,23 @@ export const AdminDepotsIndex: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <Badge variant={wl?.slaCompliance && wl.slaCompliance > 85 ? 'success' : 'warning'}>
+                <span className="px-3 py-1 bg-green-50 text-[#16A34A] border border-green-200 rounded-full text-xs font-bold">
                   SLA: {wl?.slaCompliance || 92}%
-                </Badge>
+                </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 p-3 bg-[#F9FAFB] rounded-xl border border-[#EAECF0] text-center text-xs">
+              <div className="grid grid-cols-3 gap-2 p-3 bg-gray-50 rounded-2xl border border-[#EAECF0] text-center text-xs">
                 <div>
-                  <span className="text-[#667085] block">Total Fleet</span>
-                  <span className="font-bold text-[#171717] text-sm">{depot.totalBuses} buses</span>
+                  <span className="text-[#667085] block font-semibold text-[10px] uppercase">Fleet</span>
+                  <span className="font-bold text-[#171717] text-xs">{depot.totalBuses} buses</span>
                 </div>
                 <div>
-                  <span className="text-[#667085] block">Open Cases</span>
-                  <span className="font-bold text-blue-600 text-sm">{depot.openComplaints}</span>
+                  <span className="text-[#667085] block font-semibold text-[10px] uppercase">Total Cases</span>
+                  <span className="font-bold text-blue-600 text-xs">{depot.totalComplaints}</span>
                 </div>
                 <div>
-                  <span className="text-[#667085] block">Overdue</span>
-                  <span className="font-bold text-[#D92D20] text-sm">{depot.overdueComplaints}</span>
+                  <span className="text-[#667085] block font-semibold text-[10px] uppercase">Pending</span>
+                  <span className="font-bold text-[#D92D20] text-xs">{unresolved}</span>
                 </div>
               </div>
 
@@ -72,7 +82,7 @@ export const AdminDepotsIndex: React.FC = () => {
                   <span>{depot.email}</span>
                 </div>
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>

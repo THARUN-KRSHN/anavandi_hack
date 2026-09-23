@@ -12,6 +12,22 @@ export interface Bus {
   qrCode: string;
 }
 
+export interface BusMaster {
+  id: string;
+  busNumber: string;
+  busType: string;
+  depotId: string;
+  depotName: string;
+  routeId: string;
+  routeName: string;
+  conductorName: string;
+  conductorPhone: string;
+  shiftSchedule: string;
+  status: string;
+}
+
+export type BusMasterType = BusMaster;
+
 export interface Route {
   id: string; // e.g. RT-102
   code: string;
