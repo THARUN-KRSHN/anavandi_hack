@@ -1,10 +1,11 @@
 export type ComplaintStatus =
   | 'submitted'
-  | 'assigned'
+  | 'forwarded_to_conductor'
   | 'acknowledged'
-  | 'investigating'
   | 'resolved'
-  | 'reopened'
+  // Legacy aliases supported for mock compatibility
+  | 'assigned'
+  | 'investigating'
   | 'escalated';
 
 export type ComplaintPriority = 'normal' | 'high' | 'critical';
@@ -51,7 +52,9 @@ export interface Complaint {
   createdAt: string;
   updatedAt: string;
   timeline: TimelineEvent[];
-  evidenceFiles?: string[]; // simulated file names
+  evidenceFiles?: string[];
   assignedOwner?: string;
   resolutionNote?: string;
+  userLat?: number;
+  userLng?: number;
 }

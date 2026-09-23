@@ -1,114 +1,165 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  fetchSystemMetrics,
-  fetchDepotWorkload,
-  fetchRecurringIssueAlerts,
-} from '../../services/analyticsService';
-import type { SystemMetrics, DepotWorkload, RecurringIssueAlert } from '../../types/analytics';
-import { StatCard } from '../../components/dashboard/StatCard';
-import { DepotWorkloadChart } from '../../components/dashboard/DepotWorkloadChart';
-import { RecurringAlertCard } from '../../components/dashboard/RecurringAlertCard';
-import { Button } from '../../components/ui/Button';
-import { ShieldCheck, BarChart3, Inbox, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { mockKeralaDepots } from '../../data/mock/depotsData';
+import { fetchComplaints } from '../../services/complaintsService';
+import type { DepotMaster } from '../../types/depot';
+import { AdminDepotMap } from '../../components/map/AdminDepotMap';
+import { Building2, ArrowRight } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
-  const [workloads, setWorkloads] = useState<DepotWorkload[]>([]);
-  const [alerts, setAlerts] = useState<RecurringIssueAlert[]>([]);
+  const [depots, setDepots] = useState<DepotMaster[]>(mockKeralaDepots);
+
+  const loadData = async () => {
+    try {
+      const list = await fetchComplaints({ depotId: 'all' });
+
+      // Recompute dynamic total and resolved counts for each depot from actual store
+      const updatedDepots = mockKeralaDepots.map((d) => {
+        const depotCList = list.filter((c) => c.depotId === d.id);
+        if (depotCList.length > 0) {
+          const total = depotCList.length;
+          const resolved = depotCList.filter((c) => c.status === 'resolved').length;
+          const open = total - resolved;
+          return {
+            ...d,
+            totalComplaints: total,
+            resolvedComplaints: resolved,
+            openComplaints: open,
+          };
+        }
+        return d;
+      });
+
+      setDepots(updatedDepots);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([
-      fetchSystemMetrics(),
-      fetchDepotWorkload(),
-      fetchRecurringIssueAlerts(),
-    ]).then(([m, w, a]) => {
-      setMetrics(m);
-      setWorkloads(w);
-      setAlerts(a);
-    });
+    loadData();
+
+    const handleSync = () => {
+      loadData();
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('anavandi_realtime_sync', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('anavandi_realtime_sync', handleSync);
+    };
   }, []);
 
+  const totalComplaints = depots.reduce((acc, d) => acc + d.totalComplaints, 0);
+  const totalResolved = depots.reduce((acc, d) => acc + d.resolvedComplaints, 0);
+  const totalPending = totalComplaints - totalResolved;
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
+    <div className="space-y-6 pb-16">
+      {/* Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#EAECF0]">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#171717] tracking-tight">
-            Statewide Grievance Governance Overview
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#667085] block">
+            STATE TRANSPORT HEADQUARTERS
+          </span>
+          <h1 className="text-2xl font-black text-[#171717] tracking-tight">
+            Kerala Depots Overview Map
           </h1>
-          <p className="text-xs text-[#667085] mt-1">
-            Aggregated & anonymized intelligence across all KSRTC depots and route corridors.
+          <p className="text-xs text-[#667085] mt-0.5">
+            Geospatial tracking of depot performance nodes, backlog ratios, and executive alerts.
           </p>
         </div>
-        <Button
-          variant="primary"
-          icon={<BarChart3 className="w-4 h-4" />}
-          onClick={() => navigate('/admin/analytics')}
-        >
-          View Full Analytics & SLA
-        </Button>
+
+        <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-2xl border border-[#EAECF0] shadow-xs text-xs font-bold">
+          <div className="flex items-center gap-1.5 text-[#171717]">
+            <span className="w-2 h-2 rounded-full bg-blue-600" />
+            <span>Total: {totalComplaints}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[#16A34A]">
+            <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
+            <span>Solved: {totalResolved}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[#D92D20]">
+            <span className="w-2 h-2 rounded-full bg-[#D92D20]" />
+            <span>Pending: {totalPending}</span>
+          </div>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          title="Total Complaints"
-          value={metrics?.totalComplaints || 142}
-          label="All time registered"
-          icon={<Inbox className="w-5 h-5 text-gray-700" />}
-        />
-        <StatCard
-          title="Open Queue"
-          value={metrics?.openComplaints || 18}
-          label="Under active triage"
-          icon={<Inbox className="w-5 h-5 text-blue-600" />}
-        />
-        <StatCard
-          title="Resolved Today"
-          value={metrics?.resolvedToday || 24}
-          variant="success"
-          icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-        />
-        <StatCard
-          title="Overdue (Breached)"
-          value={metrics?.overdueCount || 4}
-          variant="danger"
-          icon={<ShieldAlert className="w-5 h-5 text-[#D92D20]" />}
-        />
-        <StatCard
-          title="SLA Compliance"
-          value={`${metrics?.slaComplianceRate || 91.2}%`}
-          label="Target > 90%"
-          variant="success"
-          icon={<ShieldCheck className="w-5 h-5 text-emerald-600" />}
-        />
+      {/* Map Section */}
+      <div className="bg-white p-2 rounded-[32px] border border-[#EAECF0] shadow-xs">
+        <div className="h-[600px] w-full">
+          <AdminDepotMap depots={depots} />
+        </div>
       </div>
 
-      {/* Recurring Issue Alerts Section */}
+      {/* Depots Summary Cards Grid */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#171717] flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-[#D92D20]" />
-            <span>Recurring Issue Anomaly Alerts</span>
-          </h2>
-          <span className="text-xs text-[#667085]">Auto-detected pattern hotspots</span>
-        </div>
+        <h2 className="text-base font-black text-[#171717]">All 6 Kerala Depots Summary</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {depots.map((depot) => {
+            const unresolved = depot.totalComplaints - depot.resolvedComplaints;
+            const ratio = unresolved / (depot.totalComplaints || 1);
+            let badgeColor = 'bg-green-50 text-[#16A34A] border-green-200';
+            let label = 'Green (Low Backlog)';
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {alerts.map((alert) => (
-            <RecurringAlertCard
-              key={alert.id}
-              alert={alert}
-              onInspect={() => navigate('/admin/routes')}
-            />
-          ))}
+            if (ratio > 0.6) {
+              badgeColor = 'bg-red-50 text-[#D92D20] border-red-200';
+              label = 'Red (High Backlog)';
+            } else if (ratio > 0.3) {
+              badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+              label = 'Yellow (Moderate)';
+            }
+
+            return (
+              <div
+                key={depot.id}
+                onClick={() => navigate(`/admin/depot/${depot.id}`)}
+                className="bg-white p-5 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4 hover:border-gray-300 transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gray-100 text-[#171717] flex items-center justify-center font-bold">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-[#171717]">{depot.name}</h3>
+                      <span className="text-[10px] font-bold text-[#667085]">{depot.district}</span>
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${badgeColor}`}>
+                    {label}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="p-2 bg-gray-50 rounded-xl">
+                    <span className="text-[9px] font-bold text-[#667085] block uppercase">Total</span>
+                    <span className="font-black text-[#171717]">{depot.totalComplaints}</span>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-xl">
+                    <span className="text-[9px] font-bold text-[#16A34A] block uppercase">Solved</span>
+                    <span className="font-black text-[#16A34A]">{depot.resolvedComplaints}</span>
+                  </div>
+                  <div className="p-2 bg-red-50 rounded-xl">
+                    <span className="text-[9px] font-bold text-[#D92D20] block uppercase">Pending</span>
+                    <span className="font-black text-[#D92D20]">{unresolved}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-xs text-[#667085]">
+                  <span>Head: {depot.depotHeadName}</span>
+                  <span className="font-bold text-[#D92D20] flex items-center gap-1">
+                    View Dashboard <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* Depot Workload Chart */}
-      <DepotWorkloadChart data={workloads} />
     </div>
   );
 };

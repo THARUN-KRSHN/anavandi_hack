@@ -1,18 +1,37 @@
-import type { Bus, Route } from '../types/bus';
-import { apiRequest } from './api';
+import type { Bus, BusMaster, Route } from '../types/bus';
+import { mockBuses, mockRoutes } from '../data/mock/busesData';
 
 export async function fetchBuses(): Promise<Bus[]> {
-  const rows = await apiRequest<any[]>('/buses');
-  return rows.map((bus) => ({ busNumber: bus.bus_number, registrationNumber: bus.registration_number || '', depotId: String(bus.depot_id), depotName: '', routeId: '', routeName: '', type: bus.bus_type, status: bus.status.toLowerCase(), capacity: 0, activeComplaintsCount: 0, qrCode: bus.bus_number }));
+  return mockBuses;
+}
+
+export async function fetchBusesForDepot(depotId?: string): Promise<BusMaster[]> {
+  const masterList: BusMaster[] = mockBuses.map((b, idx) => ({
+    id: `bmaster-${idx}`,
+    busNumber: b.busNumber,
+    busType: b.type,
+    depotId: b.depotId,
+    depotName: b.depotName,
+    routeId: b.routeId,
+    routeName: b.routeName,
+    conductorName: idx % 2 === 0 ? 'V. K. Shaji' : 'M. R. Ananthakrishnan',
+    conductorPhone: idx % 2 === 0 ? '+91 98471 22390' : '+91 94472 88102',
+    shiftSchedule: idx % 2 === 0 ? '06:00 AM - 02:00 PM (Morning)' : '02:00 PM - 10:00 PM (Evening)',
+    status: b.status,
+  }));
+
+  if (!depotId || depotId === 'all') return masterList;
+  return masterList.filter((b) => b.depotId === depotId);
 }
 
 export async function fetchRoutes(): Promise<Route[]> {
-  const rows = await apiRequest<any[]>('/routes');
-  return rows.map((route) => ({ id: String(route.id), code: route.route_code, name: `${route.source} - ${route.destination}`, origin: route.source, destination: route.destination, depotId: String(route.depot_id), totalStops: 0, activeBusesCount: 0, distanceKm: 0 }));
+  return mockRoutes;
 }
 
 export async function resolveBusByQR(qrCode: string): Promise<Bus | null> {
   const code = qrCode.trim().toUpperCase();
-  const found = (await fetchBuses()).find((b) => b.qrCode.toUpperCase() === code || b.busNumber.toUpperCase() === code);
+  const found = mockBuses.find(
+    (b) => b.qrCode.toUpperCase() === code || b.busNumber.toUpperCase() === code
+  );
   return found || null;
 }

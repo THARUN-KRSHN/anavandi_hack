@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ComplaintStatus } from '../../types/complaint';
 import { Badge } from '../ui/Badge';
-import { Clock, CheckCircle2, AlertTriangle, ShieldAlert, Search, UserCheck, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle2, AlertTriangle, ShieldAlert, Search, UserCheck, Bus } from 'lucide-react';
 
 interface StatusBadgeProps {
   status: ComplaintStatus;
@@ -15,33 +15,33 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
   > = {
     submitted: {
       label: 'Submitted',
-      variant: 'info',
+      variant: 'danger',
       icon: <Clock className="w-3.5 h-3.5" />,
     },
-    assigned: {
-      label: 'Assigned',
+    forwarded_to_conductor: {
+      label: 'Forwarded to Conductor',
       variant: 'info',
-      icon: <UserCheck className="w-3.5 h-3.5" />,
+      icon: <Bus className="w-3.5 h-3.5" />,
     },
     acknowledged: {
       label: 'Acknowledged',
       variant: 'warning',
       icon: <CheckCircle2 className="w-3.5 h-3.5" />,
     },
-    investigating: {
-      label: 'Investigating',
-      variant: 'warning',
-      icon: <Search className="w-3.5 h-3.5" />,
-    },
     resolved: {
       label: 'Resolved',
       variant: 'success',
       icon: <CheckCircle2 className="w-3.5 h-3.5" />,
     },
-    reopened: {
-      label: 'Reopened',
-      variant: 'danger',
-      icon: <RefreshCw className="w-3.5 h-3.5" />,
+    assigned: {
+      label: 'Assigned',
+      variant: 'info',
+      icon: <UserCheck className="w-3.5 h-3.5" />,
+    },
+    investigating: {
+      label: 'Investigating',
+      variant: 'warning',
+      icon: <Search className="w-3.5 h-3.5" />,
     },
     escalated: {
       label: 'Escalated',

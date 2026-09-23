@@ -1,13 +1,16 @@
 import type { CrewMember, DutyRoster } from '../types/crew';
-import { apiRequest } from './api';
+import { mockCrewMembers, mockDutyRosters } from '../data/mock/crewData';
 
 export async function fetchCrewMembers(depotId?: string): Promise<CrewMember[]> {
-  const rows = await apiRequest<any[]>('/depot/conductors');
-  return rows.filter((crew) => !depotId || depotId === 'all' || String(crew.depot_id) === depotId).map((crew) => ({ pen: crew.pen, name: crew.name, phone: crew.phone || '', role: 'conductor' as const, depotId: String(crew.depot_id), depotName: '', rating: 0, totalTripsCompleted: 0, joinedDate: crew.created_at || '' }));
+  if (depotId && depotId !== 'all') {
+    return mockCrewMembers.filter((c) => c.depotId === depotId);
+  }
+  return mockCrewMembers;
 }
 
 export async function fetchCrewByPEN(pen: string): Promise<CrewMember | null> {
-  return (await fetchCrewMembers()).find((c) => c.pen.toUpperCase() === pen.toUpperCase()) || null;
+  const found = mockCrewMembers.find((c) => c.pen.toUpperCase() === pen.toUpperCase());
+  return found || null;
 }
 
 /**
@@ -17,7 +20,11 @@ export async function getDutyRosterForBus(
   busNumber: string,
   _timestamp?: string
 ): Promise<DutyRoster | null> {
-  void busNumber;
-  void _timestamp;
-  return null;
+  const found = mockDutyRosters.find(
+    (d) => d.busNumber.toLowerCase() === busNumber.toLowerCase()
+  );
+  if (found) return found;
+
+  // Fallback default roster for demo
+  return mockDutyRosters[0];
 }
