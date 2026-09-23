@@ -7,6 +7,8 @@ from app.extensions import db
 from app.models import Conductor, Route, Depot
 from app.seed.seed_buses import DEMO_DEPOTS
 
+TEST_CONDUCTOR_PHONE = "6235095205"
+
 
 def seed_conductors():
     """Create conductors from the mock dataset when present, otherwise generate synthetic demo conductors."""
@@ -35,7 +37,7 @@ def seed_conductors():
                 db.session.add(Conductor(
                     pen=pen,
                     name=(row.get("name") or "").strip() or "Mock Conductor",
-                    phone=(row.get("phone") or "").strip() or None,
+                    phone=TEST_CONDUCTOR_PHONE,
                     depot_id=depot.id,
                     status=(row.get("status") or "ACTIVE").strip() or "ACTIVE",
                 ))
@@ -69,7 +71,7 @@ def seed_conductors():
                 conductor = Conductor(
                     pen=pen,
                     name=f"Conductor {global_counter:03d}",
-                    phone=f"+9190000{global_counter:05d}",
+                    phone=TEST_CONDUCTOR_PHONE,
                     depot_id=depot.id,
                     status="ACTIVE",
                 )

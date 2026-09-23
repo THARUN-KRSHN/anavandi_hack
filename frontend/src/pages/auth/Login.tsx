@@ -16,7 +16,7 @@ export const Login: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export const Login: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const user = await signIn(email, password);
+      const user = await signIn(phone, password);
       navigate((location.state as { from?: string } | null)?.from || homeForRole(user.role), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.');
@@ -43,7 +43,7 @@ export const Login: React.FC = () => {
       </div>
       {error && <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex gap-2"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}</div>}
       <form onSubmit={submit} className="space-y-4">
-        <Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required icon={<Mail className="w-4 h-4 text-[#667085]" />} />
+        <Input label="Phone number" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} required icon={<Mail className="w-4 h-4 text-[#667085]" />} />
         <Input label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required icon={<LockKeyhole className="w-4 h-4 text-[#667085]" />} />
         <Button type="submit" variant="primary" className="w-full" isLoading={loading} icon={<ArrowRight className="w-4 h-4" />}>Sign in</Button>
       </form>

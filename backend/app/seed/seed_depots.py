@@ -10,6 +10,8 @@ from app.extensions import db
 from app.models import Depot, User
 from app.utils.auth import hash_password
 
+TEST_DEPOT_PHONE = "9778585423"
+
 
 def seed_depots(csv_path=None):
     """Load depots from the KSRTC CSV file and create depot head users."""
@@ -54,8 +56,8 @@ def seed_depots(csv_path=None):
 
             name = row.get("depot_name", "").strip()
             serial_no = int(row.get("serial_no", 0)) if row.get("serial_no", "").strip() else None
-            mobile = row.get("depot_mobile", "").strip() or None
-            head_phone = row.get("depot_head_phone", "").strip() or None
+            mobile = TEST_DEPOT_PHONE
+            head_phone = TEST_DEPOT_PHONE
             email = row.get("depot_email", "").strip() or None
 
             # Clean up head_phone — "0" means no phone
@@ -83,7 +85,7 @@ def seed_depots(csv_path=None):
                 depot_head = User(
                     name=f"{name.title()} Depot Head",
                     email=head_email,
-                    phone=head_phone,
+                    phone=TEST_DEPOT_PHONE,
                     password_hash=hash_password("depot123"),
                     role="DEPOT_HEAD",
                     depot_id=depot.id,

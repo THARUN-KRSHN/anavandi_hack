@@ -28,17 +28,17 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   return payload.data as T;
 }
 
-export async function login(email: string, password: string) {
+export async function login(phone: string, password: string) {
   return apiRequest<{ token: string; user: ApiUser }>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ phone, password }),
   });
 }
 
-export async function signup(name: string, email: string, password: string, phone?: string) {
+export async function signup(name: string, phone: string, password: string, email?: string) {
   return apiRequest<{ token: string; user: ApiUser }>('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, phone }),
+    body: JSON.stringify({ name, phone, password, email }),
   });
 }
 

@@ -19,6 +19,9 @@ _raw_db_url = os.getenv("DATABASE_URL")
 
 if not _raw_db_url or _raw_db_url.strip() in ("sqlite:///app.db", "sqlite:///:memory:"):
     _db_uri = f"sqlite:///{_default_db_path}"
+elif _raw_db_url.startswith("sqlite:///") and not os.path.isabs(_raw_db_url.removeprefix("sqlite:///")):
+    _relative_sqlite_path = _raw_db_url.removeprefix("sqlite:///")
+    _db_uri = f"sqlite:///{os.path.abspath(os.path.join(BASE_DIR, _relative_sqlite_path))}"
 else:
     _db_uri = _raw_db_url
 

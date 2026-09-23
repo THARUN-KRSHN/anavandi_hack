@@ -15,6 +15,18 @@ from app.extensions import db
 from app.models import Notification, User, Depot
 
 
+def normalize_phone(phone):
+    """Convert common Indian local numbers to E.164 for SMS providers."""
+    value = "".join(character for character in str(phone or "") if character.isdigit() or character == "+")
+    if value.startswith("0") and len(value) == 11:
+        return "+91" + value[1:]
+    if value.isdigit() and len(value) == 10:
+        return "+91" + value
+    if value.startswith("91") and len(value) == 12:
+        return "+" + value
+    return value
+
+
 # ---------------------------------------------------------------------------
 # SMS Provider Adapters
 # ---------------------------------------------------------------------------
@@ -72,6 +84,7 @@ class TwilioSMSProvider:
         self.from_number = from_number
 
     def send(self, phone, message):
+        phone = normalize_phone(phone)
         if not phone:
             return False, "Recipient phone number is missing."
         url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"

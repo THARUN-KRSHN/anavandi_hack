@@ -11,15 +11,37 @@ from app.utils.helpers import success_response, error_response, log_activity
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
+def _phone_variants(value):
+    """Return common local and E.164 forms for a phone login."""
+    raw = str(value or "").strip()
+    digits = "".join(character for character in raw if character.isdigit())
+    variants = [raw]
+    if len(digits) == 10:
+        variants.append(digits)
+        variants.append(f"+91{digits}")
+    elif len(digits) == 12 and digits.startswith("91"):
+        variants.append(digits[2:])
+        variants.append(f"+{digits}")
+    return list(dict.fromkeys(variants))
+
+
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    """POST /api/auth/login — authenticate with email + password."""
+    """POST /api/auth/login — authenticate with phone + password."""
     data = request.get_json()
 
-    if not data or not data.get("email") or not data.get("password"):
-        return error_response("INVALID_INPUT", "Email and password are required.")
+    identifier = (data or {}).get("phone") or (data or {}).get("email")
+    if not identifier or not data.get("password"):
+        return error_response("INVALID_INPUT", "Phone number and password are required.")
 
-    user = User.query.filter_by(email=data["email"].lower().strip()).first()
+    identifier = identifier.strip()
+    user = None
+    for phone in _phone_variants(identifier):
+        user = User.query.filter_by(phone=phone).first()
+        if user:
+            break
+    if not user:
+        user = User.query.filter_by(email=identifier.lower()).first()
     if not user or not verify_password(user.password_hash, data["password"]):
         return error_response("INVALID_CREDENTIALS", "Invalid email or password.", 401)
 
@@ -51,12 +73,20 @@ def signup():
         return error_response("INVALID_INPUT", "Request body is required.")
 
     # Validate required fields
-    required = ["name", "email", "password"]
+    required = ["name", "password"]
     for field in required:
         if not data.get(field):
             return error_response("INVALID_INPUT", f"{field} is required.")
 
-    email = data["email"].lower().strip()
+    if not data.get("phone") and not data.get("email"):
+        return error_response("INVALID_INPUT", "Phone number is required.")
+
+    email = data.get("email", "").lower().strip()
+    phone = data.get("phone", "").strip()
+    if not phone:
+        # Preserve compatibility for older clients while new accounts use phone login.
+        phone = f"unverified-{email}"
+    email = email or f"{phone}@passenger.demo"
 
     # Check if email already exists
     if User.query.filter_by(email=email).first():
@@ -65,7 +95,7 @@ def signup():
     # Only USER role can self-register
     user = User(
         name=data["name"].strip(),
-        phone=data.get("phone", "").strip() or None,
+        phone=phone,
         email=email,
         password_hash=hash_password(data["password"]),
         role="USER",

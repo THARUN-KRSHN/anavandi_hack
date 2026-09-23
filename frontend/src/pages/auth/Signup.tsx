@@ -16,7 +16,7 @@ export const Signup: React.FC = () => {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setError(''); setLoading(true);
-    try { await signUp(form.name, form.email, form.password, form.phone); navigate('/', { replace: true }); }
+    try { await signUp(form.name, form.phone, form.password, form.email); navigate('/', { replace: true }); }
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to create account.'); }
     finally { setLoading(false); }
   };
@@ -26,8 +26,8 @@ export const Signup: React.FC = () => {
     {error && <p className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">{error}</p>}
     <form onSubmit={submit} className="space-y-4">
       <Input label="Full name" value={form.name} onChange={update('name')} required />
-      <Input label="Email" type="email" value={form.email} onChange={update('email')} required />
-      <Input label="Phone" value={form.phone} onChange={update('phone')} />
+      <Input label="Phone number" type="tel" value={form.phone} onChange={update('phone')} required />
+      <Input label="Email (optional)" type="email" value={form.email} onChange={update('email')} />
       <Input label="Password" type="password" value={form.password} onChange={update('password')} minLength={6} required />
       <Button type="submit" variant="primary" className="w-full" isLoading={loading} icon={<ArrowRight className="w-4 h-4" />}>Create account</Button>
     </form>

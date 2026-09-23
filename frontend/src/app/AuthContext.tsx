@@ -4,8 +4,8 @@ import { apiRequest, clearSession, login, signup, type ApiUser } from '../servic
 type AuthContextValue = {
   user: ApiUser | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<ApiUser>;
-  signUp: (name: string, email: string, password: string, phone?: string) => Promise<ApiUser>;
+  signIn: (phone: string, password: string) => Promise<ApiUser>;
+  signUp: (name: string, phone: string, password: string, email?: string) => Promise<ApiUser>;
   signOut: () => void;
 };
 
@@ -45,8 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: AuthContextValue = {
     user,
     isLoading,
-    signIn: async (email, password) => establishSession(await login(email, password)),
-    signUp: async (name, email, password, phone) => establishSession(await signup(name, email, password, phone)),
+    signIn: async (phone, password) => establishSession(await login(phone, password)),
+    signUp: async (name, phone, password, email) => establishSession(await signup(name, phone, password, email)),
     signOut: () => { clearSession(); setUser(null); },
   };
 
