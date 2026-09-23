@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request
 
 from app.extensions import db
-from app.models import Depot, User, Notification
+from app.models import Depot, User, Notification, Complaint
 from app.utils.auth import role_required
 from app.utils.helpers import success_response, error_response, log_activity
 from app.services.dashboard_service import (
@@ -97,3 +97,21 @@ def list_depots():
     """GET /api/admin/depots -- list all depots."""
     depots = Depot.query.order_by(Depot.serial_no).all()
     return success_response([d.to_dict() for d in depots])
+
+
+@admin_bp.route("/complaints", methods=["GET"])
+@role_required("ADMIN")
+def list_complaints():
+    """GET /api/admin/complaints -- system-wide complaint queue."""
+    query = Complaint.query.order_by(Complaint.created_at.desc())
+    status = request.args.get("status")
+    category = request.args.get("category")
+    priority = request.args.get("priority")
+    if status:
+        query = query.filter_by(status=status)
+    if category:
+        query = query.filter_by(category=category)
+    if priority:
+        query = query.filter_by(priority=priority)
+    complaints = query.limit(request.args.get("per_page", 100, type=int)).all()
+    return success_response({"complaints": [complaint.to_dict() for complaint in complaints], "total": len(complaints)})

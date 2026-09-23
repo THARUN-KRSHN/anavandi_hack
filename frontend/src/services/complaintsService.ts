@@ -14,7 +14,7 @@ export async function fetchComplaints(filters?: { status?: string; category?: st
   if (filters?.category && filters.category !== 'all') query.set('category', filters.category.toUpperCase());
   if (filters?.priority && filters.priority !== 'all') query.set('priority', filters.priority.toUpperCase());
   const user = JSON.parse(localStorage.getItem('anavandi_user') || 'null');
-  const path = user?.role === 'USER' ? '/complaints/mine' : `/depot/complaints?${query.toString()}`;
+  const path = user?.role === 'USER' ? '/complaints/mine' : user?.role === 'ADMIN' ? `/admin/complaints?${query.toString()}` : `/depot/complaints?${query.toString()}`;
   const result = await apiRequest<{ complaints: any[] } | any[]>(path);
   const list = Array.isArray(result) ? result : result.complaints;
   const search = filters?.search?.toLowerCase();
