@@ -6,6 +6,7 @@ export interface UserProfile {
   phone: string;
   email: string;
   role: UserRole;
+  password?: string;
   depotId?: string; // For depot_head (e.g. 'DEP-EKM')
   depotName?: string;
 }

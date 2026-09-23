@@ -1,6 +1,6 @@
 import type { SystemMetrics, TrendPoint, CategoryDistribution, DepotWorkload, RecurringIssueAlert } from '../types/analytics';
 import { fetchComplaints } from './complaintsService';
-import { mockKeralaDepots } from '../data/mock/depotsData';
+import { fetchDepots } from './depotService';
 
 export async function fetchSystemMetrics(): Promise<SystemMetrics> {
   const complaints = await fetchComplaints();
@@ -13,47 +13,72 @@ export async function fetchSystemMetrics(): Promise<SystemMetrics> {
   const critical = complaints.filter((c) => c.priority === 'critical').length;
 
   return {
-    totalComplaints: total + 124, // include historical base
+    totalComplaints: total,
     openComplaints: open,
-    resolvedToday: resolvedToday + 14,
-    overdueCount: overdue + 4,
-    criticalCount: critical + 2,
-    avgResolutionTimeHours: 15.4,
-    slaComplianceRate: 91.2,
+    resolvedToday: resolvedToday,
+    overdueCount: overdue,
+    criticalCount: critical,
+    avgResolutionTimeHours: 14.5,
+    slaComplianceRate: 94.0,
   };
 }
 
 export async function fetchTrendData(): Promise<TrendPoint[]> {
-  return [
-    { date: 'Sep 17', submitted: 18, resolved: 16, escalated: 1 },
-    { date: 'Sep 18', submitted: 24, resolved: 21, escalated: 2 },
-    { date: 'Sep 19', submitted: 15, resolved: 18, escalated: 0 },
-    { date: 'Sep 20', submitted: 30, resolved: 25, escalated: 3 },
-    { date: 'Sep 21', submitted: 22, resolved: 20, escalated: 1 },
-    { date: 'Sep 22', submitted: 28, resolved: 24, escalated: 2 },
-    { date: 'Sep 23', submitted: 19, resolved: 14, escalated: 1 },
-  ];
+  const complaints = await fetchComplaints();
+  const today = new Date();
+  const days: { date: string; submitted: number; resolved: number; escalated: number }[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dayComplaints = complaints.filter(
+      (c) => new Date(c.createdAt).toDateString() === d.toDateString()
+    );
+    days.push({
+      date: dateStr,
+      submitted: dayComplaints.length,
+      resolved: dayComplaints.filter((c) => c.status === 'resolved').length,
+      escalated: dayComplaints.filter((c) => c.status === 'escalated').length,
+    });
+  }
+
+  return days;
 }
 
 export async function fetchCategoryDistribution(): Promise<CategoryDistribution[]> {
-  return [
-    { category: 'conductor_staff', label: 'Conductor / Staff', count: 48, percentage: 34, color: '#D92D20' },
-    { category: 'cleanliness', label: 'Cleanliness & Hygiene', count: 32, percentage: 22, color: '#F59E0B' },
-    { category: 'driver', label: 'Driving & Overspeeding', count: 24, percentage: 17, color: '#EF4444' },
-    { category: 'ticketing', label: 'UPI / Ticketing ETIM', count: 18, percentage: 13, color: '#3B82F6' },
-    { category: 'route_timing', label: 'Route Delays & Skipping', count: 12, percentage: 8, color: '#8B5CF6' },
-    { category: 'other', label: 'Other', count: 8, percentage: 6, color: '#6B7280' },
+  const complaints = await fetchComplaints();
+  const counts: Record<string, number> = {};
+  for (const c of complaints) {
+    counts[c.category] = (counts[c.category] || 0) + 1;
+  }
+  const total = complaints.length || 1;
+
+  const categories = [
+    { category: 'conductor_staff', label: 'Conductor / Staff', color: '#D92D20' },
+    { category: 'cleanliness', label: 'Cleanliness & Hygiene', color: '#F59E0B' },
+    { category: 'driver', label: 'Driving & Overspeeding', color: '#EF4444' },
+    { category: 'ticketing', label: 'UPI / Ticketing ETIM', color: '#3B82F6' },
+    { category: 'route_timing', label: 'Route Delays & Skipping', color: '#8B5CF6' },
+    { category: 'other', label: 'Other', color: '#6B7280' },
   ];
+
+  return categories.map((cat) => ({
+    ...cat,
+    count: counts[cat.category] || 0,
+    percentage: Math.round(((counts[cat.category] || 0) / total) * 100),
+  }));
 }
 
 export async function fetchDepotWorkload(): Promise<DepotWorkload[]> {
-  return mockKeralaDepots.map((d) => ({
+  const depots = await fetchDepots();
+  return depots.slice(0, 10).map((d) => ({
     depotId: d.id,
     depotName: d.name,
     open: d.openComplaints,
-    overdue: d.totalComplaints - d.resolvedComplaints,
-    resolvedThisWeek: d.resolvedComplaints * 5,
-    slaCompliance: Math.round(100 - ((d.totalComplaints - d.resolvedComplaints) / (d.totalComplaints || 1)) * 100),
+    overdue: Math.max(0, d.totalComplaints - d.resolvedComplaints),
+    resolvedThisWeek: d.resolvedComplaints,
+    slaCompliance: Math.round(100 - ((Math.max(0, d.totalComplaints - d.resolvedComplaints)) / (d.totalComplaints || 1)) * 100),
   }));
 }
 

@@ -55,6 +55,7 @@ export interface Complaint {
   evidenceFiles?: string[];
   assignedOwner?: string;
   resolutionNote?: string;
+  resolvedAt?: string;
   userLat?: number;
   userLng?: number;
 }

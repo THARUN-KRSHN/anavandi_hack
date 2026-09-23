@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { QrCode, Camera, CheckCircle } from 'lucide-react';
-import { mockBuses } from '../../data/mock/busesData';
+import { fetchBuses } from '../../services/busesService';
+import type { Bus } from '../../types/bus';
 
 interface QRScanModalProps {
   isOpen: boolean;
@@ -12,6 +13,17 @@ interface QRScanModalProps {
 
 export const QRScanModal: React.FC<QRScanModalProps> = ({ isOpen, onClose, onSelectBus }) => {
   const [scanning, setScanning] = useState(false);
+  const [buses, setBuses] = useState<Bus[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchBuses().then((res) => {
+        if (res && res.length > 0) {
+          setBuses(res.slice(0, 6));
+        }
+      });
+    }
+  }, [isOpen]);
 
   const handleSimulateScan = (busNum: string) => {
     setScanning(true);
@@ -47,10 +59,10 @@ export const QRScanModal: React.FC<QRScanModalProps> = ({ isOpen, onClose, onSel
 
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs font-semibold text-[#667085] uppercase tracking-wider">
-          <span>Or click a demo bus QR code:</span>
+          <span>Or select active route bus:</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {mockBuses.slice(0, 4).map((bus) => (
+          {buses.map((bus) => (
             <button
               key={bus.busNumber}
               onClick={() => handleSimulateScan(bus.busNumber)}
@@ -60,7 +72,7 @@ export const QRScanModal: React.FC<QRScanModalProps> = ({ isOpen, onClose, onSel
                 <span className="font-mono text-xs font-bold text-[#171717] block group-hover:text-[#D92D20]">
                   {bus.busNumber}
                 </span>
-                <span className="text-xs text-[#667085]">{bus.type}</span>
+                <span className="text-xs text-[#667085]">{bus.type} ({bus.depotName})</span>
               </div>
               <QrCode className="w-5 h-5 text-[#667085] group-hover:text-[#D92D20]" />
             </button>

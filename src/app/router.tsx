@@ -31,7 +31,14 @@ export const AppRouter: React.FC = () => {
       <Route path="/auth" element={<AuthPage />} />
 
       {/* Passenger Mobile-First Routes */}
-      <Route path="/" element={<PassengerHome />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute allowedRoles={['user']}>
+            <PassengerHome />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/report"
         element={

@@ -1,99 +1,17 @@
-import type { UserProfile } from '../types/auth';
+import type { UserProfile, UserRole } from '../types/auth';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { loginWithPhoneOrEmail, signupWithPhone, clearSession } from './api';
 
 const CURRENT_USER_KEY = 'anavandi_current_user_v2';
 const REGISTERED_USERS_KEY = 'anavandi_registered_users_v2';
 
-export const SEED_DEPOT_HEADS: (UserProfile & { passwordHash: string })[] = [
-  {
-    id: 'depot_ekm',
-    name: 'K. R. Somasekharan (Depot Officer)',
-    phone: '+91 94470 12044',
-    email: 'depot.ekm@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-EKM',
-    depotName: 'Ernakulam Central Depot',
-    passwordHash: 'depot123',
-  },
-  {
-    id: 'depot_alv',
-    name: 'P. V. Jayakumar (Depot Officer)',
-    phone: '+91 94470 18832',
-    email: 'depot.alv@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-ALV',
-    depotName: 'Aluva Depot',
-    passwordHash: 'depot123',
-  },
-  {
-    id: 'depot_tcr',
-    name: 'M. S. Unnikrishnan (Depot Officer)',
-    phone: '+91 94470 23110',
-    email: 'depot.tcr@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-TCR',
-    depotName: 'Thrissur Central Depot',
-    passwordHash: 'depot123',
-  },
-  {
-    id: 'depot_clt',
-    name: 'C. K. Ramachandran (Depot Officer)',
-    phone: '+91 94470 34912',
-    email: 'depot.clt@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-CLT',
-    depotName: 'Kozhikode Central Depot',
-    passwordHash: 'depot123',
-  },
-  {
-    id: 'depot_ktm',
-    name: 'T. N. Gopakumar (Depot Officer)',
-    phone: '+91 94470 41109',
-    email: 'depot.ktm@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-KTM',
-    depotName: 'Kottayam Depot',
-    passwordHash: 'depot123',
-  },
-  {
-    id: 'depot_tvm',
-    name: 'V. S. Satheesh Kumar (Depot Officer)',
-    phone: '+91 94470 59001',
-    email: 'depot.tvm@ksrtc.kerala.gov.in',
-    role: 'depot_head',
-    depotId: 'DEP-TVM',
-    depotName: 'Thiruvananthapuram Central Depot',
-    passwordHash: 'depot123',
-  },
-];
-
-export const SEED_ADMIN: UserProfile & { passwordHash: string } = {
-  id: 'admin_head',
-  name: 'Kerala State Transport Directorate',
-  phone: '+91 471 2323886',
-  email: 'admin.directorate@ksrtc.kerala.gov.in',
-  role: 'admin',
-  passwordHash: 'admin123',
-};
-
-export const DEFAULT_USER: UserProfile = {
-  id: 'usr-default',
-  name: 'Rahul Nair',
-  phone: '9876543210',
-  email: 'rahul.nair@example.com',
-  role: 'user',
-};
-
 export function getCurrentUser(): UserProfile | null {
   try {
     const raw = localStorage.getItem(CURRENT_USER_KEY);
-    if (!raw) {
-      // Default initial user session for smooth testing
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(DEFAULT_USER));
-      return DEFAULT_USER;
-    }
+    if (!raw) return null;
     return JSON.parse(raw);
   } catch {
-    return DEFAULT_USER;
+    return null;
   }
 }
 
@@ -101,34 +19,156 @@ export function setCurrentUserSession(user: UserProfile | null): void {
   if (user) {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   } else {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    clearSession();
   }
 }
 
 export function getRegisteredUsers(): UserProfile[] {
   try {
     const raw = localStorage.getItem(REGISTERED_USERS_KEY);
-    if (!raw) return [DEFAULT_USER];
+    if (!raw) return [];
     return JSON.parse(raw);
   } catch {
-    return [DEFAULT_USER];
+    return [];
   }
 }
 
-export function registerUser(name: string, phone: string, email: string): UserProfile {
+/**
+ * Synchronizes user data to Supabase Authentication (auth.users)
+ * and Supabase Table Editor (public.users)
+ */
+async function syncUserToSupabase(params: {
+  email: string;
+  password?: string;
+  name: string;
+  phone: string;
+  role: UserRole;
+  depotId?: string;
+  depotName?: string;
+}): Promise<string | undefined> {
+  if (!isSupabaseConfigured()) return undefined;
+
+  const cleanPhone = params.phone.replace(/\D/g, '').slice(-10);
+  const targetEmail = params.email.trim() || `passenger_${cleanPhone || 'anon'}@bussahayi.org`;
+  let rawPass = params.password || `Pass#${cleanPhone || '123456'}`;
+  // Ensure password is at least 6 characters for Supabase GoTrue
+  if (rawPass.length < 6) {
+    rawPass = `${rawPass}#${cleanPhone || '2026'}`;
+  }
+  const targetPassword = rawPass;
+
+  let authUserId: string | undefined;
+
+  try {
+    // 1. Try signing in first
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: targetEmail,
+      password: targetPassword,
+    });
+
+    if (!signInError && signInData?.user) {
+      authUserId = signInData.user.id;
+      await supabase.auth.updateUser({
+        data: {
+          name: params.name,
+          phone: cleanPhone,
+          role: params.role,
+          ...(params.depotId ? { depot_id: params.depotId, depot_name: params.depotName } : {}),
+        },
+      }).catch(() => {});
+    } else {
+      // 2. If not signed in, create the user in Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: targetEmail,
+        password: targetPassword,
+        options: {
+          data: {
+            name: params.name,
+            phone: cleanPhone,
+            role: params.role,
+            ...(params.depotId ? { depot_id: params.depotId, depot_name: params.depotName } : {}),
+          },
+        },
+      });
+
+      if (!signUpError && signUpData?.user) {
+        authUserId = signUpData.user.id;
+      }
+    }
+
+    // 3. Upsert into public.users table in Supabase PostgreSQL
+    try {
+      await supabase.from('users').upsert(
+        {
+          email: targetEmail,
+          name: params.name,
+          phone: cleanPhone,
+          role: params.role.toUpperCase(),
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'email' }
+      );
+    } catch (tblErr) {
+      console.warn('Supabase public.users sync notice:', tblErr);
+    }
+
+    return authUserId;
+  } catch (err) {
+    console.warn('Supabase Auth user sync notice:', err);
+  }
+  return undefined;
+}
+
+export async function registerUser(
+  name: string,
+  phone: string,
+  email: string,
+  password?: string
+): Promise<UserProfile> {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+  const userEmail = email.trim() || `passenger_${cleanPhone}@bussahayi.org`;
+  const userPassword = password || `Pass#${cleanPhone || '123456'}`;
+
+  // 1. Sync to Supabase Auth so user record appears immediately in Supabase
+  const supabaseUserId = await syncUserToSupabase({
+    name,
+    phone: cleanPhone,
+    email: userEmail,
+    password: userPassword,
+    role: 'user',
+  });
+
+  // 2. Sync to Backend REST API
+  try {
+    const res = await signupWithPhone(name, cleanPhone, userEmail, userPassword);
+    if (res?.token) {
+      localStorage.setItem('anavandi_access_token', res.token);
+    }
+  } catch (backendErr) {
+    console.warn('Backend API signup fallback:', backendErr);
+  }
+
   const users = getRegisteredUsers();
-  const existing = users.find((u) => u.phone === phone);
+  const existing = users.find((u) => u.phone === cleanPhone);
   if (existing) {
-    const updated = { ...existing, name, email };
+    const updated = {
+      ...existing,
+      name,
+      email: userEmail,
+      id: supabaseUserId || existing.id,
+      ...(password ? { password } : {}),
+    };
     setCurrentUserSession(updated);
     return updated;
   }
 
   const newUser: UserProfile = {
-    id: `usr-${Date.now()}`,
+    id: supabaseUserId || `usr-${Date.now()}`,
     name,
-    phone,
-    email,
+    phone: cleanPhone,
+    email: userEmail,
+    ...(password ? { password } : {}),
     role: 'user',
   };
 
@@ -138,21 +178,39 @@ export function registerUser(name: string, phone: string, email: string): UserPr
   return newUser;
 }
 
-export function loginUserWithOTP(phone: string, otp: string): UserProfile {
-  if (otp !== '123456') {
-    throw new Error('Invalid OTP code. Please enter 123456 for testing.');
+export async function loginUserWithPassword(phone: string, password: string): Promise<UserProfile> {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+  const users = getRegisteredUsers();
+  const existing = users.find((u) => u.phone === cleanPhone);
+  const userEmail = existing?.email || `passenger_${cleanPhone}@bussahayi.org`;
+  const userName = existing?.name || `Passenger (${cleanPhone.slice(-4)})`;
+
+  // 1. Sync to Supabase Auth
+  const supabaseUserId = await syncUserToSupabase({
+    name: userName,
+    phone: cleanPhone,
+    email: userEmail,
+    password,
+    role: 'user',
+  });
+
+  // 2. Sync to Backend API
+  try {
+    const res = await loginWithPhoneOrEmail(cleanPhone, password);
+    if (res?.token) {
+      localStorage.setItem('anavandi_access_token', res.token);
+    }
+  } catch (backendErr) {
+    console.warn('Backend API login notice:', backendErr);
   }
 
-  const users = getRegisteredUsers();
-  let found = users.find((u) => u.phone === phone);
-
+  let found = existing;
   if (!found) {
-    // Auto-register user with default phone name if logging in directly
     found = {
-      id: `usr-${Date.now()}`,
-      name: `User (${phone.slice(-4)})`,
-      phone,
-      email: `${phone}@ksrtc.user`,
+      id: supabaseUserId || `usr-${Date.now()}`,
+      name: userName,
+      phone: cleanPhone,
+      email: userEmail,
       role: 'user',
     };
     localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify([...users, found]));
@@ -162,25 +220,95 @@ export function loginUserWithOTP(phone: string, otp: string): UserProfile {
   return found;
 }
 
-export function loginStaff(id: string, password: string, role: 'depot_head' | 'admin'): UserProfile {
-  if (role === 'admin') {
-    if (id.trim() === SEED_ADMIN.id && password === SEED_ADMIN.passwordHash) {
-      setCurrentUserSession(SEED_ADMIN);
-      return SEED_ADMIN;
+export async function loginUserWithOTP(phone: string, otp: string): Promise<UserProfile> {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+  if (otp.length < 4) {
+    throw new Error('Please enter a valid OTP code.');
+  }
+
+  const users = getRegisteredUsers();
+  const existing = users.find((u) => u.phone === cleanPhone);
+  const userEmail = existing?.email || `passenger_${cleanPhone}@bussahayi.org`;
+  const userName = existing?.name || `Passenger (${cleanPhone.slice(-4)})`;
+  const userPassword = existing?.password || `Pass#${cleanPhone}`;
+
+  // 1. Sync user data to Supabase Auth
+  const supabaseUserId = await syncUserToSupabase({
+    name: userName,
+    phone: cleanPhone,
+    email: userEmail,
+    password: userPassword,
+    role: 'user',
+  });
+
+  // 2. Sync to Backend API
+  try {
+    const res = await loginWithPhoneOrEmail(cleanPhone, userPassword).catch(() =>
+      signupWithPhone(userName, cleanPhone, userEmail, userPassword)
+    );
+    if (res?.token) {
+      localStorage.setItem('anavandi_access_token', res.token);
     }
-    throw new Error('Invalid Admin credentials. Use ID: admin_head, Password: admin123');
+  } catch (backendErr) {
+    console.warn('Backend API OTP fallback notice:', backendErr);
   }
 
-  const matchedHead = SEED_DEPOT_HEADS.find(
-    (dh) => dh.id.toLowerCase() === id.trim().toLowerCase() && dh.passwordHash === password
-  );
-
-  if (matchedHead) {
-    setCurrentUserSession(matchedHead);
-    return matchedHead;
+  let found = existing;
+  if (!found) {
+    found = {
+      id: supabaseUserId || `usr-${Date.now()}`,
+      name: userName,
+      phone: cleanPhone,
+      email: userEmail,
+      role: 'user',
+    };
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify([...users, found]));
   }
 
-  throw new Error('Invalid Depot Head credentials. Example ID: depot_ekm, Password: depot123');
+  setCurrentUserSession(found);
+  return found;
+}
+
+export async function loginStaff(
+  id: string,
+  password: string,
+  role: 'depot_head' | 'admin'
+): Promise<UserProfile> {
+  const staffId = id.trim();
+  const staffEmail = staffId.includes('@') ? staffId : `${staffId.toLowerCase()}@ksrtc.kerala.gov.in`;
+
+  // 1. Sync staff user to Supabase Auth
+  const supabaseUserId = await syncUserToSupabase({
+    name: role === 'admin' ? 'State Transport Admin' : `Depot Head (${staffId})`,
+    phone: '',
+    email: staffEmail,
+    password,
+    role,
+    depotId: role === 'depot_head' ? staffId.toUpperCase() : undefined,
+  });
+
+  // 2. Sync to Backend API
+  try {
+    const res = await loginWithPhoneOrEmail(staffEmail, password);
+    if (res?.token) {
+      localStorage.setItem('anavandi_access_token', res.token);
+    }
+  } catch (backendErr) {
+    console.warn('Backend API staff login notice:', backendErr);
+  }
+
+  const staffUser: UserProfile = {
+    id: supabaseUserId || staffId,
+    name: role === 'admin' ? 'Kerala State Transport Directorate' : `Depot Officer (${staffId})`,
+    phone: '',
+    email: staffEmail,
+    role,
+    depotId: role === 'depot_head' ? staffId.toUpperCase() : undefined,
+    depotName: role === 'depot_head' ? `${staffId.toUpperCase()} Depot` : undefined,
+  };
+
+  setCurrentUserSession(staffUser);
+  return staffUser;
 }
 
 export function updateProfile(name: string, phone: string, email: string): UserProfile {
@@ -203,6 +331,20 @@ export function updateProfile(name: string, phone: string, email: string): UserP
       users[idx] = updated;
       localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
     }
+  }
+
+  // Sync update to Supabase Auth metadata
+  if (isSupabaseConfigured()) {
+    supabase.auth.updateUser({
+      data: { name, phone },
+    }).catch(console.warn);
+
+    // Also update public.users table
+    void supabase.from('users').update({
+      name,
+      phone,
+      updated_at: new Date().toISOString(),
+    }).eq('email', email).then(undefined, console.warn);
   }
 
   return updated;

@@ -5,6 +5,7 @@ import {
   setCurrentUserSession,
   registerUser,
   loginUserWithOTP,
+  loginUserWithPassword,
   loginStaff,
   updateProfile,
 } from '../services/authService';
@@ -13,9 +14,10 @@ interface AuthContextType {
   user: UserProfile | null;
   role: UserRole;
   isAuthenticated: boolean;
-  loginUser: (phone: string, otp: string) => void;
-  signUpUser: (name: string, phone: string, email: string) => void;
-  loginStaffMember: (id: string, password: string, role: 'depot_head' | 'admin') => void;
+  loginUser: (phone: string, otp: string) => Promise<void>;
+  loginUserPass: (phone: string, password: string) => Promise<void>;
+  signUpUser: (name: string, phone: string, email: string, password?: string) => Promise<void>;
+  loginStaffMember: (id: string, password: string, role: 'depot_head' | 'admin') => Promise<void>;
   updateUserProfile: (name: string, phone: string, email: string) => void;
   logout: () => void;
 }
@@ -35,18 +37,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const loginUser = (phone: string, otp: string) => {
-    const u = loginUserWithOTP(phone, otp);
+  const loginUser = async (phone: string, otp: string) => {
+    const u = await loginUserWithOTP(phone, otp);
     setUser(u);
   };
 
-  const signUpUser = (name: string, phone: string, email: string) => {
-    const u = registerUser(name, phone, email);
+  const loginUserPass = async (phone: string, password: string) => {
+    const u = await loginUserWithPassword(phone, password);
     setUser(u);
   };
 
-  const loginStaffMember = (id: string, password: string, role: 'depot_head' | 'admin') => {
-    const u = loginStaff(id, password, role);
+  const signUpUser = async (name: string, phone: string, email: string, password?: string) => {
+    const u = await registerUser(name, phone, email, password);
+    setUser(u);
+  };
+
+  const loginStaffMember = async (id: string, password: string, role: 'depot_head' | 'admin') => {
+    const u = await loginStaff(id, password, role);
     setUser(u);
   };
 
@@ -67,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: user?.role || 'user',
         isAuthenticated: !!user,
         loginUser,
+        loginUserPass,
         signUpUser,
         loginStaffMember,
         updateUserProfile,

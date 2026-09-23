@@ -27,10 +27,30 @@ export interface SmsOutboxLog {
   sentAt: string;
   messageContent: string;
   updateUrl: string;
+  deliveryStatus?: string;
 }
 
 const TOKENS_STORAGE_KEY = 'anavandi_sms_tokens_v1';
 const OUTBOX_STORAGE_KEY = 'anavandi_sms_outbox_v1';
+const FAST2SMS_KEY_STORAGE = 'anavandi_fast2sms_key_v1';
+
+const DEFAULT_FAST2SMS_KEY = 'q4oTG2H6hmWX9fBDdNkxlSsjZ5O3Aap1FQRzJLrv07nICPguwtAVFXd1tkqGh6Yc3bf9v87s4S2xzZwJ';
+
+export function getFast2SMSKey(): string {
+  try {
+    return localStorage.getItem(FAST2SMS_KEY_STORAGE) || DEFAULT_FAST2SMS_KEY;
+  } catch {
+    return DEFAULT_FAST2SMS_KEY;
+  }
+}
+
+export function saveFast2SMSKey(key: string) {
+  try {
+    localStorage.setItem(FAST2SMS_KEY_STORAGE, key.trim());
+  } catch (err) {
+    console.error('Failed to save Fast2SMS key:', err);
+  }
+}
 
 function getStoredTokens(): Record<string, SmsToken> {
   try {
@@ -67,6 +87,75 @@ function saveStoredOutbox(logs: SmsOutboxLog[]) {
   }
 }
 
+/**
+ * Extracts 10-digit Indian phone number from any raw string
+ */
+function cleanIndianPhoneNumber(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, '');
+  if (digits.length >= 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+}
+
+/**
+ * Sends a real SMS via Fast2SMS Bulk V2 API (Proxied through Vite dev server to bypass CORS)
+ */
+async function dispatchFast2Sms(targetPhone: string, messageText: string): Promise<string> {
+  const apiKey = getFast2SMSKey();
+  const cleanPhone = cleanIndianPhoneNumber(targetPhone);
+
+  if (!cleanPhone || cleanPhone.length !== 10) {
+    return `Simulated (Invalid 10-digit phone: ${targetPhone})`;
+  }
+
+  try {
+    // 1. Try local dev proxy /fast2sms-api/dev/bulkV2
+    const res = await fetch('/fast2sms-api/dev/bulkV2', {
+      method: 'POST',
+      headers: {
+        authorization: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        route: 'q', // Quick SMS Route
+        message: messageText,
+        language: 'english',
+        flash: 0,
+        numbers: cleanPhone,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (data && data.return === true) {
+      return `Delivered via Fast2SMS to +91 ${cleanPhone}`;
+    } else if (data && data.message) {
+      return `Fast2SMS Info: ${data.message}`;
+    }
+  } catch (err) {
+    console.warn('Proxy fetch failed, attempting direct GET fallback:', err);
+  }
+
+  // 2. Direct GET Fallback
+  try {
+    const getUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(
+      apiKey
+    )}&route=q&message=${encodeURIComponent(messageText)}&language=english&flash=0&numbers=${cleanPhone}`;
+
+    const res = await fetch(getUrl);
+    const data = await res.json().catch(() => ({}));
+
+    if (data && data.return === true) {
+      return `Delivered via Fast2SMS (GET) to +91 ${cleanPhone}`;
+    }
+    return `Fast2SMS Status: ${data.message || 'Response received'}`;
+  } catch (err: any) {
+    console.error('Fast2SMS GET fetch error:', err);
+    return `CORS / Network Blocked. Logged to outbox.`;
+  }
+}
+
 export async function sendConductorSms(params: {
   complaintId: string;
   complaintRef: string;
@@ -84,9 +173,12 @@ export async function sendConductorSms(params: {
 
   const messageContent = params.customMessage
     ? params.customMessage.replace('{token}', token).replace('{origin}', origin)
-    : `ANAVANDI: Complaint ${params.complaintRef} (${params.categoryLabel}) on bus ${params.busNumber}. Update status: ${updateUrl}`;
+    : `Bus Sahayi: Complaint ${params.complaintRef} (${params.categoryLabel}) on bus ${params.busNumber}. Update status: ${updateUrl}`;
 
   const now = new Date().toISOString();
+
+  // Attempt real SMS dispatch via Fast2SMS
+  const deliveryStatus = await dispatchFast2Sms(params.conductorPhone, messageContent);
 
   // Save token entry
   const tokenEntry: SmsToken = {
@@ -119,6 +211,7 @@ export async function sendConductorSms(params: {
     sentAt: now,
     messageContent,
     updateUrl,
+    deliveryStatus,
   };
 
   const outbox = getStoredOutbox();
@@ -128,7 +221,7 @@ export async function sendConductorSms(params: {
   await updateComplaintStatus(
     params.complaintId,
     'forwarded_to_conductor',
-    `SMS notification dispatched to conductor ${params.conductorName} (${params.conductorPhone}).`,
+    `SMS dispatched to ${params.conductorName} (${params.conductorPhone}) [${deliveryStatus}].`,
     'depot_manager',
     'Depot Head Desk'
   );

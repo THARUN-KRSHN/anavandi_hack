@@ -16,7 +16,7 @@ import {
   Bus,
   Clock,
 } from 'lucide-react';
-import { COMPLAINT_CATEGORIES } from '../../data/mock/categories';
+import { COMPLAINT_CATEGORIES } from '../../constants/categories';
 
 export const DepotDashboard: React.FC = () => {
   const { user } = useAuth();

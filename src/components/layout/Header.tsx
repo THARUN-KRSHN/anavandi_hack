@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Bus, Search, User, LogOut, Shield, Building2 } from 'lucide-react';
+import { Search, User, LogOut, Shield, Building2 } from 'lucide-react';
 import { NotificationBell } from '../notifications/NotificationBell';
 
 export const Header: React.FC = () => {
@@ -12,28 +12,39 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-40 bg-gradient-to-r from-[#E2F1E7]/90 via-[#F4F9F5]/90 to-[#E5F3EB]/90 backdrop-blur-md border-b border-[#EAECF0]/80 py-3 px-4 sm:px-6 lg:px-8 transition-all">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
-        {/* Brand & Greeting */}
+        {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
-          <Link to="/" className="w-10 h-10 rounded-full bg-[#171717] text-white shadow-md flex items-center justify-center shrink-0 hover:scale-105 transition-transform">
-            <Bus className="w-5 h-5 text-emerald-400" />
+          <Link to="/" className="flex items-center gap-3 group" title="Bus Sahayi Home">
+            <img
+              src="/logo.png"
+              alt="Bus Sahayi Logo"
+              className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl bg-white p-0.5 border border-[#EAECF0] shadow-sm group-hover:scale-105 transition-transform"
+            />
+            <div className="flex flex-col">
+              <span className="text-base sm:text-lg font-black text-[#171717] tracking-tight leading-none group-hover:text-[#D92D20] transition-colors">
+                Bus Sahayi
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] mt-0.5">
+                {role === 'depot_head'
+                  ? 'Depot Head Portal'
+                  : role === 'admin'
+                  ? 'Admin Governance'
+                  : 'Kerala Public Transit'}
+              </span>
+            </div>
           </Link>
-
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#667085] block">
-              {role === 'depot_head' ? 'DEPOT HEAD PORTAL' : role === 'admin' ? 'ADMIN GOVERNANCE' : 'KERALA TRANSIT'}
-            </span>
-            <h1 className="text-lg font-black text-[#171717] tracking-tight flex items-center gap-1.5">
-              <span>Hi, {user?.name ? user.name.split(' ')[0] : 'Passenger'} 👋</span>
-            </h1>
-          </div>
         </div>
 
-        {/* Right White Circular Action Buttons */}
+        {/* Right Header Controls */}
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <>
               {role === 'user' && (
                 <>
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/80 rounded-full border border-[#EAECF0] text-xs font-semibold text-[#475467]">
+                    <span>Hi, {user?.name ? user.name.split(' ')[0] : 'Passenger'} 👋</span>
+                  </div>
+
                   <Link
                     to="/track"
                     className="w-10 h-10 rounded-full bg-white border border-[#EAECF0] shadow-sm flex items-center justify-center text-[#171717] hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all"
@@ -70,7 +81,10 @@ export const Header: React.FC = () => {
               )}
 
               <button
-                onClick={() => { logout(); navigate('/auth'); }}
+                onClick={() => {
+                  logout();
+                  navigate('/auth');
+                }}
                 className="w-10 h-10 rounded-full bg-white border border-[#EAECF0] shadow-sm flex items-center justify-center text-[#667085] hover:text-[#D92D20] hover:bg-red-50 hover:scale-105 active:scale-95 transition-all"
                 title="Sign Out"
               >

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockKeralaDepots } from '../../data/mock/depotsData';
+import { fetchDepots } from '../../services/depotService';
 import { fetchComplaints } from '../../services/complaintsService';
 import type { DepotMaster } from '../../types/depot';
 import { AdminDepotMap } from '../../components/map/AdminDepotMap';
@@ -8,14 +8,16 @@ import { Building2, ArrowRight } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [depots, setDepots] = useState<DepotMaster[]>(mockKeralaDepots);
+  const [depots, setDepots] = useState<DepotMaster[]>([]);
 
   const loadData = async () => {
     try {
-      const list = await fetchComplaints({ depotId: 'all' });
+      const [allDepots, list] = await Promise.all([
+        fetchDepots(),
+        fetchComplaints({ depotId: 'all' }),
+      ]);
 
-      // Recompute dynamic total and resolved counts for each depot from actual store
-      const updatedDepots = mockKeralaDepots.map((d) => {
+      const updatedDepots = allDepots.map((d) => {
         const depotCList = list.filter((c) => c.depotId === d.id);
         if (depotCList.length > 0) {
           const total = depotCList.length;

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getSmsToken, submitConductorStatusUpdate, type SmsToken } from '../../services/smsService';
 import { fetchComplaintById } from '../../services/complaintsService';
 import type { Complaint } from '../../types/complaint';
-import { Bus, CheckCircle2, Clock, AlertTriangle, Check } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, Check } from 'lucide-react';
 
 export const ConductorUpdatePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -78,12 +78,12 @@ export const ConductorUpdatePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E2F1E7] via-[#F4F9F5] to-[#E5F3EB] p-4 flex flex-col justify-between">
+    <div className="min-h-screen p-4 flex flex-col justify-between relative z-10">
       {/* Mobile Top Brand Bar */}
       <div className="max-w-md mx-auto w-full pt-4 pb-2 text-center space-y-1">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#171717] text-white rounded-full shadow-md text-xs font-bold">
-          <Bus className="w-4 h-4 text-emerald-400" />
-          <span>ANAVANDI CONDUCTOR PORTAL</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#171717] text-white rounded-full shadow-md text-xs font-bold">
+          <img src="/logo.png" alt="Bus Sahayi" className="w-5 h-5 object-contain rounded-md bg-white p-0.5" />
+          <span>BUS SAHAYI CONDUCTOR PORTAL</span>
         </div>
       </div>
 

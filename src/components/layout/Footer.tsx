@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bus, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -8,10 +8,8 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-gray-800">
           <div>
             <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-[#D92D20] text-white flex items-center justify-center font-bold">
-                <Bus className="w-4 h-4" />
-              </div>
-              <span className="font-extrabold text-lg tracking-tight">ANAVANDI</span>
+              <img src="/logo.png" alt="Bus Sahayi" className="w-9 h-9 object-contain rounded-xl bg-white p-0.5" />
+              <span className="font-extrabold text-lg tracking-tight">Bus Sahayi</span>
             </div>
             <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
               Public Transport Grievance & Depot Accountability Platform. Built for rapid passenger feedback, traceable duty roster lookup, and depot resolution transparency.
@@ -44,7 +42,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
-          <span>© 2026 ANAVANDI — Public Transport Governance Platform</span>
+          <span>© 2026 Bus Sahayi — Public Transport Governance Platform</span>
           <span>Designed & Built with White-First Red/Green Design Tokens</span>
         </div>
       </div>

@@ -5,4 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/fast2sms-api': {
+        target: 'https://www.fast2sms.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/fast2sms-api/, ''),
+      },
+    },
+  },
 });

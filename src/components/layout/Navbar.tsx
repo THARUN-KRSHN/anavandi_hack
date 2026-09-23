@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bus, FileText, Menu, X } from 'lucide-react';
+import { FileText, Menu, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export const Navbar: React.FC = () => {
@@ -16,12 +16,10 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo Brand */}
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#D92D20] text-white flex items-center justify-center font-black text-lg shadow-sm shadow-red-200">
-              <Bus className="w-5 h-5" />
-            </div>
+            <img src="/logo.png" alt="Bus Sahayi Logo" className="w-10 h-10 object-contain rounded-xl bg-white p-0.5 border border-[#EAECF0] shadow-sm shadow-emerald-100" />
             <div>
               <span className="font-extrabold text-xl text-[#171717] tracking-tight block leading-none">
-                ANAVANDI
+                Bus Sahayi
               </span>
               <span className="text-[10px] text-[#667085] uppercase tracking-wider font-semibold">
                 Grievance & Depot Accountability

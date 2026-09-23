@@ -6,6 +6,7 @@ import { BottomNav } from '../components/layout/BottomNav';
 import { AppRouter } from './router';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import { DynamicDotBackground } from '../components/ui/DynamicDotBackground';
 
 export const App: React.FC = () => {
   useRealtimeSync();
@@ -17,31 +18,34 @@ export const App: React.FC = () => {
   const isDepot = location.pathname.startsWith('/depot');
   const isAdmin = location.pathname.startsWith('/admin');
 
-  // If on Auth page or conductor update page, render clean layout without Header/Sidebar
-  if (isAuthPage || isConductorPage) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-[#E2F1E7] via-[#F4F9F5] to-[#E5F3EB]">
-        <AppRouter />
-      </main>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E2F1E7] via-[#F4F9F5] to-[#E5F3EB] text-[#171717] flex flex-col font-sans">
-      {/* Top Header */}
-      <Header />
+    <div className="relative min-h-screen bg-gradient-to-b from-[#E2F1E7] via-[#F4F9F5] to-[#E5F3EB] text-[#171717] flex flex-col font-sans overflow-x-hidden">
+      {/* Interactive Halftone Dot Background Canvas */}
+      <DynamicDotBackground />
 
-      {/* Body Content Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {(isDepot || isAdmin) && <Sidebar role={role as 'depot' | 'admin'} />}
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+      {/* Clean layout for Auth / Conductor update screens */}
+      {isAuthPage || isConductorPage ? (
+        <main className="relative z-10 min-h-screen flex flex-col">
           <AppRouter />
         </main>
-      </div>
+      ) : (
+        <>
+          {/* Top Header */}
+          <Header />
 
-      {/* Floating Dark Pill Bottom Nav for Mobile Users */}
-      <BottomNav />
+          {/* Body Content Layout */}
+          <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto">
+            {(isDepot || isAdmin) && <Sidebar role={role as 'depot' | 'admin'} />}
+
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+              <AppRouter />
+            </main>
+          </div>
+
+          {/* Floating Dark Pill Bottom Nav for Mobile Users */}
+          <BottomNav />
+        </>
+      )}
     </div>
   );
 };

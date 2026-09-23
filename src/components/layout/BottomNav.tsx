@@ -4,11 +4,11 @@ import { Home, FileText, Search, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const BottomNav: React.FC = () => {
-  const { role } = useAuth();
+  const { isAuthenticated, role } = useAuth();
   const location = useLocation();
 
-  // Only render on mobile/tablet user views or public update links
-  if (role !== 'user' && !location.pathname.startsWith('/u/')) return null;
+  // Only render on mobile/tablet for authenticated user views
+  if (!isAuthenticated || (role !== 'user' && !location.pathname.startsWith('/u/'))) return null;
 
   const navItems = [
     { to: '/', label: 'Home', icon: <Home className="w-5 h-5" />, end: true },
