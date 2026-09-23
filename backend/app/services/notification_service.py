@@ -175,6 +175,13 @@ def notify_depot_head(depot_id, complaint):
     db.session.add(notification)
     db.session.commit()
 
+    # Send Email to Depot (Demo recipient: tharunkrishnachoolikattil@gmail.com)
+    try:
+        from app.services.email_service import send_depot_report_email
+        send_depot_report_email(depot.name, complaint)
+    except Exception as email_err:
+        print(f"[WARN] Email to depot failed: {email_err}")
+
     # Also send SMS if depot head has phone
     if depot.head_phone and depot.head_phone != "0":
         try:

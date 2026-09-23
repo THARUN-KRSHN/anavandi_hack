@@ -34,12 +34,22 @@ def send_conductor_sms(complaint_id, conductor_id):
         expiry_hours=expiry_hours,
     )
 
-    # Build action URL
+    # Build action URLs
     base_url = current_app.config.get("BASE_URL", "http://localhost:5000")
     action_url = f"{base_url}/api/conductor/action/{raw_token}"
 
+    frontend_base = current_app.config.get("FRONTEND_URL", "http://localhost:5173")
+    frontend_action_url = f"{frontend_base}/conductor/update?token={raw_token}"
+
     # Send SMS
-    success, msg = send_conductor_notification(conductor, complaint, action_url)
+    success, msg = send_conductor_notification(conductor, complaint, frontend_action_url)
+
+    # Send Email to Conductor (Demo recipient: tharunkrishnachoolikattil@gmail.com)
+    try:
+        from app.services.email_service import send_conductor_duty_email
+        send_conductor_duty_email(conductor.name, complaint, frontend_action_url)
+    except Exception as email_err:
+        print(f"[WARN] Email to conductor failed: {email_err}")
 
     if success:
         # Update complaint status to ASSIGNED if still SUBMITTED

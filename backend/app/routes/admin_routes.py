@@ -107,11 +107,14 @@ def list_complaints():
     status = request.args.get("status")
     category = request.args.get("category")
     priority = request.args.get("priority")
+    depot_id = request.args.get("depot_id", type=int)
     if status:
         query = query.filter_by(status=status)
     if category:
         query = query.filter_by(category=category)
     if priority:
         query = query.filter_by(priority=priority)
+    if depot_id:
+        query = query.filter_by(depot_id=depot_id)
     complaints = query.limit(request.args.get("per_page", 100, type=int)).all()
     return success_response({"complaints": [complaint.to_dict() for complaint in complaints], "total": len(complaints)})

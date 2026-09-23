@@ -38,6 +38,7 @@ class Depot(db.Model):
             "name": self.name,
             "mobile": self.mobile,
             "head_phone": self.head_phone,
+            "head_name": self.depot_head_user.name if self.depot_head_user else None,
             "email": self.email,
             "latitude": self.latitude,
             "longitude": self.longitude,

@@ -50,7 +50,7 @@ export const WebGLFallback: React.FC<WebGLFallbackProps> = ({ type = 'hero' }) =
         </div>
       </div>
 
-      <h3 className="text-base font-bold text-[#171717] z-10">ANAVANDI Transit Network</h3>
+      <h3 className="text-base font-bold text-[#171717] z-10">BUS സഹായി Transit Network</h3>
       <p className="text-xs text-[#667085] mt-1 max-w-xs z-10">
         Public Transport Grievance & Depot Accountability System
       </p>

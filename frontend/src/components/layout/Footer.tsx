@@ -1,7 +1,10 @@
 import React from 'react';
 import { Bus, Shield } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const Footer: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <footer className="bg-[#171717] text-white pt-10 pb-8 border-t border-gray-800 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,7 +14,7 @@ export const Footer: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-[#D92D20] text-white flex items-center justify-center font-bold">
                 <Bus className="w-4 h-4" />
               </div>
-              <span className="font-extrabold text-lg tracking-tight">ANAVANDI</span>
+              <span className="font-extrabold text-lg tracking-tight">{t('appName', 'BUS സഹായി')}</span>
             </div>
             <p className="text-xs text-gray-400 max-w-sm leading-relaxed">
               Public Transport Grievance & Depot Accountability Platform. Built for rapid passenger feedback, traceable duty roster lookup, and depot resolution transparency.
@@ -44,7 +47,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
-          <span>© 2026 ANAVANDI — Public Transport Governance Platform</span>
+          <span>© 2026 {t('appName', 'BUS സഹായി')} — Public Transport Governance Platform</span>
           <span>Designed & Built with White-First Red/Green Design Tokens</span>
         </div>
       </div>

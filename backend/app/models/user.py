@@ -43,6 +43,7 @@ class User(db.Model):
         }
         if self.role == "DEPOT_HEAD" and self.depot_id:
             data["depot_id"] = self.depot_id
+            data["depot_name"] = self.depot.name if self.depot else None
         return data
 
     def __repr__(self):

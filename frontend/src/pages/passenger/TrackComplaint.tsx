@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchComplaintById } from '../../services/complaintsService';
+import { fetchComplaintById, downloadComplaintPdfBlob } from '../../services/complaintsService';
 import type { Complaint } from '../../types/complaint';
 import { generateComplaintPDF } from '../../utils/pdfExport';
 import { Timeline } from '../../components/complaint/Timeline';
@@ -105,7 +105,19 @@ export const TrackComplaint: React.FC = () => {
               </div>
 
               <button
-                onClick={() => generateComplaintPDF(complaint)}
+                onClick={async () => {
+                  try {
+                    const blob = await downloadComplaintPdfBlob(complaint.reference);
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${complaint.reference}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                  } catch {
+                    generateComplaintPDF(complaint);
+                  }
+                }}
                 className="py-2 px-4 bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 font-bold text-xs rounded-full transition-all flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4 text-emerald-600" />

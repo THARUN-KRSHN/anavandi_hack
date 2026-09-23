@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { mockRoutes } from '../../data/mock/busesData';
+import { fetchRoutes } from '../../services/busesService';
+import type { Route } from '../../types/bus';
 import { fetchRecurringIssueAlerts } from '../../services/analyticsService';
 import type { RecurringIssueAlert } from '../../types/analytics';
 import { RecurringAlertCard } from '../../components/dashboard/RecurringAlertCard';
@@ -8,9 +9,11 @@ import { Route as RouteIcon } from 'lucide-react';
 
 export const AdminRoutesAnalytics: React.FC = () => {
   const [alerts, setAlerts] = useState<RecurringIssueAlert[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
 
   useEffect(() => {
     fetchRecurringIssueAlerts().then(setAlerts);
+    fetchRoutes().then(setRoutes);
   }, []);
 
   return (
@@ -36,7 +39,7 @@ export const AdminRoutesAnalytics: React.FC = () => {
       <div className="space-y-4 pt-4">
         <h2 className="text-lg font-bold text-[#171717]">Main Route Corridors Master</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {mockRoutes.map((route) => (
+          {routes.map((route) => (
             <Card key={route.id} className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">

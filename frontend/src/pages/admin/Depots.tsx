@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { fetchDepotWorkload } from '../../services/analyticsService';
-import { mockKeralaDepots } from '../../data/mock/depotsData';
-import type { DepotWorkload } from '../../types/analytics';
+import { fetchDepots } from '../../services/depotService';
 import type { DepotMaster } from '../../types/depot';
 import { Building2, Phone, Mail, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const AdminDepotsIndex: React.FC = () => {
   const navigate = useNavigate();
-  const [workloads, setWorkloads] = useState<DepotWorkload[]>([]);
+  const [depots, setDepots] = useState<DepotMaster[]>([]);
 
   useEffect(() => {
-    fetchDepotWorkload().then(setWorkloads);
+    fetchDepots().then(setDepots).catch(console.error);
   }, []);
 
   return (
@@ -24,13 +22,12 @@ export const AdminDepotsIndex: React.FC = () => {
           Depot Performance Index
         </h1>
         <p className="text-xs text-[#667085] mt-0.5">
-          Workload, fleet volume, and backlog metrics for all 6 Kerala depots.
+          Workload, fleet volume, and backlog metrics across all {depots.length} Kerala depots.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mockKeralaDepots.map((depot: DepotMaster) => {
-          const wl = workloads.find((w) => w.depotId === depot.id);
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {depots.map((depot) => {
           const unresolved = depot.totalComplaints - depot.resolvedComplaints;
 
           return (
@@ -53,7 +50,7 @@ export const AdminDepotsIndex: React.FC = () => {
                   </div>
                 </div>
                 <span className="px-3 py-1 bg-green-50 text-[#16A34A] border border-green-200 rounded-full text-xs font-bold">
-                  SLA: {wl?.slaCompliance || 92}%
+                  SLA: {depot.slaCompliance || 92}%
                 </span>
               </div>
 

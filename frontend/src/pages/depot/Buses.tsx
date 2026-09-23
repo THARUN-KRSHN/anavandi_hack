@@ -6,8 +6,8 @@ import { Bus, UserCheck, Phone, Clock, Search, MapPin } from 'lucide-react';
 
 export const DepotBusesMaster: React.FC = () => {
   const { user } = useAuth();
-  const depotId = user?.depotId || 'DEP-EKM';
-  const depotName = user?.depotName || 'Ernakulam Central Depot';
+  const depotId = user?.depotId;
+  const depotName = user?.depotName || 'Depot Fleet';
 
   const [buses, setBuses] = useState<BusMaster[]>([]);
   const [searchQuery, setSearchQuery] = useState('');

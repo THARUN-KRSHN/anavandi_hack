@@ -15,10 +15,11 @@ export const ConductorUpdatePage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Form State
-  const [selectedStatus, setSelectedStatus] = useState<'acknowledged' | 'resolved'>('acknowledged');
-  const [note, setNote] = useState('');
+  const [selectedAction, setSelectedAction] = useState<'acknowledged' | 'unable_to_resolve'>('acknowledged');
+  const [actionNote, setActionNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
+  const [actionNoteError, setActionNoteError] = useState('');
 
   useEffect(() => {
     const loadTokenAndComplaint = async () => {
@@ -43,9 +44,43 @@ export const ConductorUpdatePage: React.FC = () => {
 
         setTokenData(tokenObj);
 
-        // Fetch complaint details
-        const cmp = await fetchComplaintById(tokenObj.complaintId);
-        setComplaint(cmp);
+        // If authenticated, fetch full complaint; otherwise construct from tokenObj data
+        try {
+          const cmp = await fetchComplaintById(tokenObj.complaintId);
+          if (cmp) {
+            setComplaint(cmp);
+          } else {
+            setComplaint({
+              id: tokenObj.complaintId,
+              reference: tokenObj.complaintRef,
+              category: 'other',
+              categoryLabel: tokenObj.categoryLabel,
+              description: tokenObj.description || 'Passenger filed a grievance for this trip.',
+              busNumber: tokenObj.busNumber,
+              routeFrom: tokenObj.routeFrom || '',
+              routeTo: tokenObj.routeTo || '',
+              conductorName: tokenObj.conductorName,
+              status: 'forwarded_to_conductor',
+              priority: 'normal',
+              createdAt: tokenObj.sentAt || new Date().toISOString(),
+            } as Complaint);
+          }
+        } catch {
+          setComplaint({
+            id: tokenObj.complaintId,
+            reference: tokenObj.complaintRef,
+            category: 'other',
+            categoryLabel: tokenObj.categoryLabel,
+            description: tokenObj.description || 'Passenger filed a grievance for this trip.',
+            busNumber: tokenObj.busNumber,
+            routeFrom: tokenObj.routeFrom || '',
+            routeTo: tokenObj.routeTo || '',
+            conductorName: tokenObj.conductorName,
+            status: 'forwarded_to_conductor',
+            priority: 'normal',
+            createdAt: tokenObj.sentAt || new Date().toISOString(),
+          } as Complaint);
+        }
       } catch (err) {
         console.error(err);
         setErrorMessage('Failed to load complaint data.');
@@ -61,9 +96,16 @@ export const ConductorUpdatePage: React.FC = () => {
     e.preventDefault();
     if (!token) return;
 
+    // Require action description when 'Action Taken' is selected
+    if (selectedAction === 'acknowledged' && !actionNote.trim()) {
+      setActionNoteError('Please describe what action was taken.');
+      return;
+    }
+    setActionNoteError('');
+
     setSubmitting(true);
     try {
-      const res = await submitConductorStatusUpdate(token, selectedStatus, note);
+      const res = await submitConductorStatusUpdate(token, selectedAction, actionNote);
       if (res.success) {
         setIsSubmittedSuccess(true);
       } else {
@@ -83,7 +125,7 @@ export const ConductorUpdatePage: React.FC = () => {
       <div className="max-w-md mx-auto w-full pt-4 pb-2 text-center space-y-1">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#171717] text-white rounded-full shadow-md text-xs font-bold">
           <Bus className="w-4 h-4 text-emerald-400" />
-          <span>ANAVANDI CONDUCTOR PORTAL</span>
+          <span>BUS സഹായി CONDUCTOR PORTAL</span>
         </div>
       </div>
 
@@ -119,11 +161,16 @@ export const ConductorUpdatePage: React.FC = () => {
             </div>
             <h2 className="text-2xl font-black text-[#171717]">Status Updated!</h2>
             <p className="text-xs text-[#667085]">
-              Complaint <span className="font-bold text-[#171717]">{tokenData?.complaintRef}</span> has been updated to{' '}
-              <span className="font-bold text-[#16A34A] uppercase">{selectedStatus}</span>.
+              Complaint <span className="font-bold text-[#171717]">{tokenData?.complaintRef}</span> has been sent to the depot head for review.
             </p>
+            {actionNote && (
+              <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs">
+                <span className="text-[10px] font-bold text-[#667085] uppercase block mb-1">Your Note</span>
+                <p className="text-[#171717] italic">"{actionNote}"</p>
+              </div>
+            )}
             <p className="text-[11px] text-[#667085] bg-gray-50 p-3 rounded-2xl border border-gray-100">
-              The depot desk and passenger have been updated via real-time sync.
+              The depot head will review and mark the complaint as resolved.
             </p>
           </div>
         ) : (
@@ -160,45 +207,57 @@ export const ConductorUpdatePage: React.FC = () => {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#171717] block">Select Update Status:</label>
+                <label className="text-xs font-bold text-[#171717] block">What is your response?</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedStatus('acknowledged')}
+                    onClick={() => { setSelectedAction('acknowledged'); setActionNoteError(''); }}
                     className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-                      selectedStatus === 'acknowledged'
-                        ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
-                        : 'bg-white border-[#EAECF0] text-[#667085] hover:bg-gray-50'
-                    }`}
-                  >
-                    <Clock className="w-5 h-5" />
-                    <span>Acknowledged</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedStatus('resolved')}
-                    className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-                      selectedStatus === 'resolved'
-                        ? 'bg-green-50 border-[#16A34A] text-[#16A34A] shadow-sm'
+                      selectedAction === 'acknowledged'
+                        ? 'bg-emerald-50 border-emerald-600 text-emerald-700 shadow-sm'
                         : 'bg-white border-[#EAECF0] text-[#667085] hover:bg-gray-50'
                     }`}
                   >
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>Resolved</span>
+                    <span>Action Taken</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedAction('unable_to_resolve'); setActionNoteError(''); }}
+                    className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+                      selectedAction === 'unable_to_resolve'
+                        ? 'bg-red-50 border-[#D92D20] text-[#D92D20] shadow-sm'
+                        : 'bg-white border-[#EAECF0] text-[#667085] hover:bg-gray-50'
+                    }`}
+                  >
+                    <Clock className="w-5 h-5" />
+                    <span>Unable to Resolve</span>
                   </button>
                 </div>
               </div>
 
+              {/* Description required when Action Taken */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#171717] block">Optional Conductor Note:</label>
+                <label className="text-xs font-bold text-[#171717] block">
+                  {selectedAction === 'acknowledged' ? 'What action was taken? *' : 'Reason / Notes (optional):'}
+                </label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Action taken on board, seat cleaned, issue resolved with passenger..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border border-[#EAECF0] rounded-2xl text-xs font-medium text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20"
+                  placeholder={
+                    selectedAction === 'acknowledged'
+                      ? 'e.g. Bus was cleaned at the next stop. Passenger was informed and apologised to...'
+                      : 'e.g. Complaint pertains to a different shift. Unable to verify incident...'
+                  }
+                  value={actionNote}
+                  onChange={(e) => { setActionNote(e.target.value); setActionNoteError(''); }}
+                  className={`w-full p-3 bg-gray-50 border rounded-2xl text-xs font-medium text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20 ${
+                    actionNoteError ? 'border-red-400' : 'border-[#EAECF0]'
+                  }`}
                 />
+                {actionNoteError && (
+                  <p className="text-xs text-[#D92D20] font-semibold">{actionNoteError}</p>
+                )}
               </div>
 
               <button
@@ -206,7 +265,7 @@ export const ConductorUpdatePage: React.FC = () => {
                 disabled={submitting}
                 className="w-full py-3.5 bg-[#171717] text-white text-xs font-bold rounded-full shadow-lg hover:bg-black flex items-center justify-center gap-2 transition-all active:scale-98"
               >
-                {submitting ? 'Submitting...' : 'Submit Status Update'}
+                {submitting ? 'Submitting...' : 'Submit & Notify Depot Head'}
               </button>
             </form>
           </div>

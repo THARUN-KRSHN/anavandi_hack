@@ -8,6 +8,10 @@ import {
   MessageSquare,
   MapPin,
   Building2,
+  Users,
+  ShieldAlert,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,14 +25,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const depotLinks = [
     { to: '/depot', label: 'Reports Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, end: true },
     { to: '/depot/complaints', label: 'All Reports', icon: <FileText className="w-5 h-5" /> },
+    { to: '/depot/escalations', label: 'Escalations Queue', icon: <ShieldAlert className="w-5 h-5" /> },
     { to: '/depot/buses', label: 'Depot Buses', icon: <Bus className="w-5 h-5" /> },
     { to: '/depot/routes', label: 'Depot Routes', icon: <RouteIcon className="w-5 h-5" /> },
+    { to: '/depot/crew', label: 'Crew Directory', icon: <Users className="w-5 h-5" /> },
     { to: '/depot/outbox', label: 'SMS Outbox Log', icon: <MessageSquare className="w-5 h-5" /> },
   ];
 
   const adminLinks = [
     { to: '/admin', label: 'State Map Overview', icon: <MapPin className="w-5 h-5" />, end: true },
     { to: '/admin/depots', label: 'All Depots Index', icon: <Building2 className="w-5 h-5" /> },
+    { to: '/admin/complaints', label: 'All Cases', icon: <FileText className="w-5 h-5" /> },
+    { to: '/admin/analytics', label: 'Analytics & SLA', icon: <BarChart3 className="w-5 h-5" /> },
+    { to: '/admin/routes', label: 'Route Hotspots', icon: <TrendingUp className="w-5 h-5" /> },
   ];
 
   const links = role === 'depot' ? depotLinks : adminLinks;

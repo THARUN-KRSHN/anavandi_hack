@@ -4,6 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { complaintSchema, COMPLAINT_CATEGORIES, type ComplaintFormData } from '../../utils/validation';
 import { createComplaint } from '../../services/complaintsService';
+import { fetchBuses } from '../../services/busesService';
+import type { Bus } from '../../types/bus';
 import { MiniLocationMap } from '../../components/map/MiniLocationMap';
 import {
   FileText,
@@ -18,6 +20,7 @@ export const ReportComplaint: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableBuses, setAvailableBuses] = useState<Bus[]>([]);
 
   // Geolocation & Map State (Default Ernakulam location)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number }>({
@@ -39,10 +42,10 @@ export const ReportComplaint: React.FC = () => {
     resolver: zodResolver(complaintSchema),
     defaultValues: {
       category: 'Cleanliness',
-      routeFrom: 'Ernakulam Kaloor',
-      routeTo: 'Thrissur Kokkala',
-      busNumber: 'KL-07-AB-1234',
-      incidentTime: '09:30 AM Today',
+      routeFrom: '',
+      routeTo: '',
+      busNumber: '',
+      incidentTime: '',
       description: '',
       evidenceFiles: [],
     },
@@ -52,6 +55,28 @@ export const ReportComplaint: React.FC = () => {
   const busNumberInput = watch('busNumber');
   const routeFromInput = watch('routeFrom');
   const routeToInput = watch('routeTo');
+  const [busId, setBusId] = useState<number | undefined>();
+  const [routeId, setRouteId] = useState<number | undefined>();
+
+  useEffect(() => {
+    fetchBuses()
+      .then((buses) => setAvailableBuses(buses))
+      .catch((err) => console.error('Failed to load buses:', err));
+  }, []);
+
+  useEffect(() => {
+    if (busNumberInput && availableBuses.length > 0) {
+      const match = availableBuses.find(
+        (b) => b.busNumber.toLowerCase() === busNumberInput.trim().toLowerCase()
+      );
+      if (match) {
+        setBusId(match.id);
+        if (match.routeId) {
+          setRouteId(Number(match.routeId));
+        }
+      }
+    }
+  }, [busNumberInput, availableBuses]);
 
   // Request Geolocation Consent on Step 2
   const requestGeolocation = () => {
@@ -117,11 +142,16 @@ export const ReportComplaint: React.FC = () => {
         category: data.category as unknown as any,
         categoryLabel: data.category === 'Other' ? 'Undisclosed Issue Type' : data.category,
         description: data.description,
+        other_description: data.category === 'Other' ? data.description : undefined,
+        busId,
+        routeId,
         busNumber: data.busNumber,
         routeFrom: data.routeFrom,
         routeTo: data.routeTo,
         incidentTime: data.incidentTime,
         evidenceFiles: photos,
+        latitude: userCoords.lat,
+        longitude: userCoords.lng,
       });
 
       navigate('/report/success', { state: { complaint: created } });
@@ -237,9 +267,25 @@ export const ReportComplaint: React.FC = () => {
                     <label className="text-xs font-bold text-[#171717]">Route From *</label>
                     <input
                       {...register('routeFrom')}
+                      list="routes-from-datalist"
                       placeholder="e.g. Ernakulam Kaloor"
                       className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#171717]"
                     />
+                    <datalist id="routes-from-datalist">
+                      <option value="Trivandrum Central" />
+                      <option value="Kollam KSRTC Stand" />
+                      <option value="Kottayam Stand" />
+                      <option value="Ernakulam South" />
+                      <option value="Aluva KSRTC Bus Station" />
+                      <option value="Angamaly Bus Stand" />
+                      <option value="Thrissur Kokkala" />
+                      <option value="Palakkad Bus Stand" />
+                      <option value="Kozhikode KSRTC Hub" />
+                      <option value="Kannur Bus Terminal" />
+                      <option value="Sulthan Bathery Depot" />
+                      <option value="Adoor Bus Stand" />
+                      <option value="Kayamkulam Stand" />
+                    </datalist>
                     {errors.routeFrom && <span className="text-[11px] text-red-500">{errors.routeFrom.message}</span>}
                   </div>
 
@@ -247,21 +293,72 @@ export const ReportComplaint: React.FC = () => {
                     <label className="text-xs font-bold text-[#171717]">Route To *</label>
                     <input
                       {...register('routeTo')}
+                      list="routes-to-datalist"
                       placeholder="e.g. Thrissur Kokkala"
                       className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#171717]"
                     />
+                    <datalist id="routes-to-datalist">
+                      <option value="Thrissur Kokkala" />
+                      <option value="Aluva Bus Terminal" />
+                      <option value="Ernakulam Mobility Hub" />
+                      <option value="Trivandrum Central" />
+                      <option value="Kozhikode KSRTC" />
+                      <option value="Palakkad Stand" />
+                      <option value="Guruvayur Stand" />
+                      <option value="Nedumbassery Airport" />
+                      <option value="Muvattupuzha Bus Stand" />
+                      <option value="Kottayam Stand" />
+                    </datalist>
                     {errors.routeTo && <span className="text-[11px] text-red-500">{errors.routeTo.message}</span>}
                   </div>
                 </div>
 
+                {/* DYNAMIC SUGGESTED DEPOT CARD */}
+                {(routeFromInput || routeToInput) && (
+                  <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-7 h-7 rounded-full bg-amber-500 text-white font-black flex items-center justify-center text-[10px]">
+                        📍
+                      </span>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-amber-800 block">
+                          SUGGESTED RESPONSIBLE DEPOT
+                        </span>
+                        <span className="font-extrabold text-amber-950">
+                          {routeFromInput?.toLowerCase().includes('aluva') || routeToInput?.toLowerCase().includes('aluva') || routeFromInput?.toLowerCase().includes('angamaly')
+                            ? 'Aluva Depot (Ernakulam Zone)'
+                            : routeFromInput?.toLowerCase().includes('trivandrum') || routeToInput?.toLowerCase().includes('trivandrum')
+                            ? 'Trivandrum Central Depot'
+                            : routeFromInput?.toLowerCase().includes('thrissur') || routeToInput?.toLowerCase().includes('thrissur')
+                            ? 'Thrissur Depot'
+                            : routeFromInput?.toLowerCase().includes('kozhikode') || routeToInput?.toLowerCase().includes('calicut')
+                            ? 'Kozhikode Depot'
+                            : 'Ernakulam Central Depot (Auto-assigned)'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900">
+                      Auto Match
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#171717]">Bus Plate Number *</label>
+                    <label className="text-xs font-bold text-[#171717]">Bus Plate Number (Optional)</label>
                     <input
                       {...register('busNumber')}
-                      placeholder="e.g. KL-07-AB-1234"
+                      list="buses-datalist"
+                      placeholder="e.g. KL-15-A-1001 (Optional)"
                       className="w-full bg-[#F9FAFB] border border-[#EAECF0] rounded-2xl px-4 py-2.5 text-xs font-mono font-bold uppercase text-[#D92D20] focus:outline-none focus:ring-2 focus:ring-[#D92D20]"
                     />
+                    <datalist id="buses-datalist">
+                      {availableBuses.map((b) => (
+                        <option key={b.busNumber} value={b.busNumber}>
+                          {b.depotName ? `${b.busNumber} (${b.depotName})` : b.busNumber}
+                        </option>
+                      ))}
+                    </datalist>
                     {errors.busNumber && <span className="text-[11px] text-red-500 font-medium">{errors.busNumber.message}</span>}
                   </div>
 

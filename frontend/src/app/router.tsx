@@ -15,6 +15,8 @@ import { DepotDashboard } from '../pages/depot/Dashboard';
 import { ComplaintDetails } from '../pages/depot/ComplaintDetails';
 import { DepotBusesMaster } from '../pages/depot/Buses';
 import { DepotRoutes } from '../pages/depot/Routes';
+import { DepotCrewDirectory } from '../pages/depot/Crew';
+import { DepotEscalations } from '../pages/depot/Escalations';
 import { SmsOutboxLogPage } from '../pages/depot/Outbox';
 
 // Conductor Update Page (Public, mobile-first)
@@ -22,7 +24,11 @@ import { ConductorUpdatePage } from '../pages/conductor/ConductorUpdatePage';
 
 // Admin Pages
 import { AdminDashboard } from '../pages/admin/Dashboard';
+import { AdminDepotsIndex } from '../pages/admin/Depots';
 import { AdminDepotDetail } from '../pages/admin/AdminDepotDetail';
+import { AdminAnalytics } from '../pages/admin/Analytics';
+import { AdminComplaintsLog } from '../pages/admin/Complaints';
+import { AdminRoutesAnalytics } from '../pages/admin/Routes';
 
 export const AppRouter: React.FC = () => {
   return (
@@ -97,6 +103,22 @@ export const AppRouter: React.FC = () => {
         }
       />
       <Route
+        path="/depot/crew"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotCrewDirectory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depot/escalations"
+        element={
+          <ProtectedRoute allowedRoles={['depot_head']}>
+            <DepotEscalations />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/depot/outbox"
         element={
           <ProtectedRoute allowedRoles={['depot_head']}>
@@ -118,7 +140,7 @@ export const AppRouter: React.FC = () => {
         path="/admin/depots"
         element={
           <ProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
+            <AdminDepotsIndex />
           </ProtectedRoute>
         }
       />
@@ -127,6 +149,30 @@ export const AppRouter: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminDepotDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/analytics"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminAnalytics />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/complaints"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminComplaintsLog />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/routes"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminRoutesAnalytics />
           </ProtectedRoute>
         }
       />

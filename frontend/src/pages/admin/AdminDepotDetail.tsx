@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockKeralaDepots } from '../../data/mock/depotsData';
 import { fetchComplaints } from '../../services/complaintsService';
+import { fetchDepotDetail } from '../../services/depotService';
 import { addNotification } from '../../services/notificationService';
 import type { DepotMaster } from '../../types/depot';
 import type { Complaint } from '../../types/complaint';
@@ -33,11 +33,10 @@ export const AdminDepotDetail: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const foundDepot = mockKeralaDepots.find((d) => d.id === depotId) || mockKeralaDepots[0];
-      setDepot(foundDepot);
-
-      const list = await fetchComplaints({ depotId: foundDepot.id });
-      setComplaints(list);
+      if (!depotId) return;
+      const detail = await fetchDepotDetail(depotId);
+      setDepot(detail.depot);
+      setComplaints(await fetchComplaints({ depotId }));
     } catch (err) {
       console.error(err);
     } finally {

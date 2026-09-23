@@ -14,7 +14,7 @@ export const COMPLAINT_CATEGORIES = [
 
 export type CategoryType = typeof COMPLAINT_CATEGORIES[number];
 
-export const busPlateRegex = /^KL-\d{2}-[A-Z]{1,2}-\d{1,4}$/i;
+export const busPlateRegex = /^(?:KL-\d{2}-[A-Z]{1,2}-\d{1,4}|[A-Z0-9-]{5,30})$/i;
 
 export const complaintSchema = z.object({
   category: z.enum(COMPLAINT_CATEGORIES),
@@ -22,8 +22,8 @@ export const complaintSchema = z.object({
   routeTo: z.string().min(2, 'Please enter a valid destination location'),
   busNumber: z
     .string()
-    .min(5, 'Please enter a valid bus registration plate')
-    .refine((val) => busPlateRegex.test(val), {
+    .optional()
+    .refine((val) => !val || val.trim() === '' || busPlateRegex.test(val.trim()), {
       message: 'Bus number format should be like KL-07-AB-1234',
     }),
   incidentTime: z.string().min(1, 'Please select approximate incident time'),

@@ -25,13 +25,21 @@ class Bus(db.Model):
     complaints = db.relationship("Complaint", back_populates="bus", lazy="dynamic")
 
     def to_dict(self):
+        from app.models.assignment import DutyAssignment
+        latest_assignment = self.assignments.order_by(DutyAssignment.duty_date.desc()).first() if hasattr(self, 'assignments') else None
         return {
             "id": self.id,
             "bus_number": self.bus_number,
             "registration_number": self.registration_number,
             "depot_id": self.depot_id,
+            "depot_name": self.depot.name if self.depot else "",
             "bus_type": self.bus_type,
             "status": self.status,
+            "route_id": latest_assignment.route_id if latest_assignment else None,
+            "route_name": f"{latest_assignment.route.source} - {latest_assignment.route.destination}" if (latest_assignment and latest_assignment.route) else "",
+            "conductor_name": latest_assignment.conductor.name if (latest_assignment and latest_assignment.conductor) else "",
+            "conductor_phone": latest_assignment.conductor.phone if (latest_assignment and latest_assignment.conductor) else "",
+            "shift_schedule": f"{latest_assignment.shift_start.strftime('%I:%M %p')} - {latest_assignment.shift_end.strftime('%I:%M %p')}" if (latest_assignment and latest_assignment.shift_start and latest_assignment.shift_end) else "",
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

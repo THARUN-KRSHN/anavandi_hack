@@ -1,37 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockKeralaDepots } from '../../data/mock/depotsData';
-import { fetchComplaints } from '../../services/complaintsService';
+import { fetchDepots } from '../../services/depotService';
 import type { DepotMaster } from '../../types/depot';
 import { AdminDepotMap } from '../../components/map/AdminDepotMap';
 import { Building2, ArrowRight } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [depots, setDepots] = useState<DepotMaster[]>(mockKeralaDepots);
+  const [depots, setDepots] = useState<DepotMaster[]>([]);
 
   const loadData = async () => {
     try {
-      const list = await fetchComplaints({ depotId: 'all' });
-
-      // Recompute dynamic total and resolved counts for each depot from actual store
-      const updatedDepots = mockKeralaDepots.map((d) => {
-        const depotCList = list.filter((c) => c.depotId === d.id);
-        if (depotCList.length > 0) {
-          const total = depotCList.length;
-          const resolved = depotCList.filter((c) => c.status === 'resolved').length;
-          const open = total - resolved;
-          return {
-            ...d,
-            totalComplaints: total,
-            resolvedComplaints: resolved,
-            openComplaints: open,
-          };
-        }
-        return d;
-      });
-
-      setDepots(updatedDepots);
+      setDepots(await fetchDepots());
     } catch (err) {
       console.error(err);
     }
@@ -97,7 +77,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Depots Summary Cards Grid */}
       <div className="space-y-4">
-        <h2 className="text-base font-black text-[#171717]">All 6 Kerala Depots Summary</h2>
+        <h2 className="text-base font-black text-[#171717]">All {depots.length} Kerala Depots Summary</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {depots.map((depot) => {
             const unresolved = depot.totalComplaints - depot.resolvedComplaints;

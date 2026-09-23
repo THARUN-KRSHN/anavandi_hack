@@ -16,6 +16,7 @@ export interface DepotMaster {
   totalComplaints: number;
   phone: string;
   email: string;
+  slaCompliance?: number;
 }
 
 export interface SMSOutboxLog {

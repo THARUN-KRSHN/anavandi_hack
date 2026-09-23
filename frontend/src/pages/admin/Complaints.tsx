@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchComplaints } from '../../services/complaintsService';
+import { fetchDepots } from '../../services/depotService';
 import type { Complaint } from '../../types/complaint';
+import type { DepotMaster } from '../../types/depot';
 import { ComplaintCard } from '../../components/complaint/ComplaintCard';
 import { Select, Input } from '../../components/ui/Input';
 import { Search } from 'lucide-react';
@@ -9,12 +11,22 @@ import { Search } from 'lucide-react';
 export const AdminComplaintsLog: React.FC = () => {
   const navigate = useNavigate();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [depots, setDepots] = useState<DepotMaster[]>([]);
   const [depotFilter, setDepotFilter] = useState('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    fetchDepots().then(setDepots).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     fetchComplaints({ depotId: depotFilter, search }).then(setComplaints);
   }, [depotFilter, search]);
+
+  const depotOptions = [
+    { value: 'all', label: 'All Depots' },
+    ...depots.map((d) => ({ value: d.id, label: d.name })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -36,13 +48,7 @@ export const AdminComplaintsLog: React.FC = () => {
         />
 
         <Select
-          options={[
-            { value: 'all', label: 'All Depots' },
-            { value: 'DEP-TVM', label: 'Trivandrum Central Depot' },
-            { value: 'DEP-EKM', label: 'Ernakulam Central Depot' },
-            { value: 'DEP-CLT', label: 'Kozhikode Central Depot' },
-            { value: 'DEP-TCR', label: 'Thrissur Central Depot' },
-          ]}
+          options={depotOptions}
           value={depotFilter}
           onChange={(e) => setDepotFilter(e.target.value)}
         />

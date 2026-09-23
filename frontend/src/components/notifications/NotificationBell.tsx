@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const depotId = user?.depotId || 'DEP-EKM';
+  const depotId = user?.depotId;
 
   const [notifications, setNotifications] = useState<DepotNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);

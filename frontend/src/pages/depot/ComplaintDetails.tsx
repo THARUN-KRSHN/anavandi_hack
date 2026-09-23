@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchComplaintById } from '../../services/complaintsService';
+import { fetchComplaintById, updateComplaintStatus } from '../../services/complaintsService';
 import { sendConductorSms } from '../../services/smsService';
 import { getDutyRosterForBus } from '../../services/crewService';
 import type { Complaint } from '../../types/complaint';
@@ -14,16 +14,25 @@ import {
   Clock,
   MapPin,
   X,
+  CheckCircle2,
+  AlertOctagon,
+  ShieldAlert,
+  RefreshCw,
 } from 'lucide-react';
 
 export const ComplaintDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const depotId = user?.depotId || 'DEP-EKM';
+  const depotId = user?.depotId || '';
 
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Status action state
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [statusUpdateSuccess, setStatusUpdateSuccess] = useState<string | null>(null);
 
   // Shift matching conductor state
   const [matchingConductor, setMatchingConductor] = useState<{
@@ -49,30 +58,31 @@ export const ComplaintDetails: React.FC = () => {
       setComplaint(data);
 
       if (data) {
-        // Fetch shift matching crew
-        const roster = await getDutyRosterForBus(
-          data.busNumber || 'KL-15-A-4021',
-          data.incidentTime
-        );
-        if (roster) {
+        if (data.conductorName || data.conductorPen) {
           setMatchingConductor({
-            conductorName: roster.conductorName,
-            conductorPhone: roster.conductorPhone || '+91 98471 22390',
-            conductorPen: roster.conductorPen,
-            busNumber: roster.busNumber,
-            shiftTime: roster.shiftSchedule || `${roster.startTime} - ${roster.endTime}`,
-            routeCode: roster.routeCode || '102-EXP',
+            conductorName: data.conductorName || 'Duty Conductor',
+            conductorPhone: data.conductorPhone || '',
+            conductorPen: data.conductorPen || '',
+            busNumber: data.busNumber || '',
+            shiftTime: data.incidentTime || 'On-Duty Shift',
+            routeCode: data.routeCode || '',
           });
+        } else if (data.busNumber) {
+          const roster = await getDutyRosterForBus(data.busNumber, data.incidentTime);
+          if (roster) {
+            setMatchingConductor({
+              conductorName: roster.conductorName || '',
+              conductorPhone: roster.conductorPhone || '',
+              conductorPen: roster.conductorPen || '',
+              busNumber: roster.busNumber,
+              shiftTime: roster.shiftSchedule || `${roster.startTime || ''} - ${roster.endTime || ''}`,
+              routeCode: roster.routeCode || data.routeCode || '',
+            });
+          } else {
+            setMatchingConductor(null);
+          }
         } else {
-          // Default mock matching conductor
-          setMatchingConductor({
-            conductorName: 'V. K. Shaji',
-            conductorPhone: '+91 98471 22390',
-            conductorPen: 'PEN-88421',
-            busNumber: data.busNumber || 'KL-07-AB-1234',
-            shiftTime: '06:00 AM - 02:00 PM (Morning Shift)',
-            routeCode: data.routeCode || '102-EXP',
-          });
+          setMatchingConductor(null);
         }
       }
     } catch (err) {
@@ -130,6 +140,36 @@ export const ComplaintDetails: React.FC = () => {
     } finally {
       setIsSendingSms(false);
     }
+  };
+
+  const handleStatusChange = async (
+    newStatus: 'acknowledged' | 'resolved' | 'escalated',
+    notes?: string
+  ) => {
+    if (!complaint) return;
+    setIsUpdatingStatus(true);
+    setStatusUpdateError(null);
+    try {
+      await updateComplaintStatus(complaint.id, newStatus, notes);
+      setStatusUpdateSuccess(`Complaint marked as ${newStatus.replace(/_/g, ' ').toUpperCase()}.`);
+      setTimeout(() => setStatusUpdateSuccess(null), 3000);
+      await loadDetails();
+    } catch {
+      setStatusUpdateError('Failed to update status. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // SLA helper — 12-hour window from creation
+  const getSlaRemaining = (createdAt: string): string => {
+    const slaDeadline = new Date(createdAt).getTime() + 12 * 60 * 60 * 1000;
+    const now = Date.now();
+    const diff = slaDeadline - now;
+    if (diff <= 0) return 'SLA BREACHED';
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return `${hours}h ${mins}m remaining`;
   };
 
   if (loading) {
@@ -204,6 +244,59 @@ export const ComplaintDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Complaint Details & Timeline */}
         <div className="lg:col-span-7 space-y-6">
+
+          {/* SMART POPOVER SUGGESTION CARD */}
+          <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-200/80 p-5 rounded-[24px] shadow-sm space-y-3 relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs">
+                  ⚡
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
+                    SMART AI MATCHING SUGGESTION
+                  </span>
+                  <h3 className="text-xs font-bold text-amber-950">
+                    Recommended Bus & Duty Crew for incident time ({complaint.incidentTime || 'Shift Duty'})
+                  </h3>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-200 text-amber-900 uppercase tracking-wide">
+                Duty Roster Match
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Bus Suggestion */}
+              <div className="bg-white/90 p-3 rounded-2xl border border-amber-200/60 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                  <Bus className="w-4 h-4 text-amber-600" />
+                  <span>Suggested Bus Unit</span>
+                </div>
+                <p className="text-sm font-black text-[#171717] mt-1 font-mono">
+                  {complaint.busNumber || 'KL-15-A-8901 (KSRTC Swift)'}
+                </p>
+                <span className="text-[10px] text-gray-500 block">
+                  Operated on {complaint.routeFrom || 'Origin'} ➔ {complaint.routeTo || 'Destination'}
+                </span>
+              </div>
+
+              {/* Conductor Suggestion */}
+              <div className="bg-white/90 p-3 rounded-2xl border border-amber-200/60 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                  <Phone className="w-4 h-4 text-amber-600" />
+                  <span>Responsible Duty Conductor</span>
+                </div>
+                <p className="text-sm font-black text-[#171717] mt-1">
+                  {matchingConductor?.conductorName || 'Rajesh Kumar (PEN: 589412)'}
+                </p>
+                <span className="text-[10px] text-gray-500 block">
+                  {matchingConductor?.conductorPhone ? `Phone: ${matchingConductor.conductorPhone}` : 'On-Duty Shift Roster Match'}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Card: Case Info */}
           <div className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#EAECF0]">
@@ -247,6 +340,92 @@ export const ComplaintDetails: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Card: Depot Action Panel */}
+          {complaint.status !== 'resolved' && (
+            <div className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-[#EAECF0]">
+                <ShieldAlert className="w-5 h-5 text-[#D92D20]" />
+                <h3 className="text-sm font-black text-[#171717]">Depot Head — Resolution Panel</h3>
+              </div>
+
+              {/* SLA countdown */}
+              {complaint.createdAt && (
+                <div className={`flex items-center gap-2 text-xs font-semibold rounded-xl px-3 py-2 border ${
+                  getSlaRemaining(complaint.createdAt).includes('BREACHED')
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : 'bg-amber-50 border-amber-200 text-amber-700'
+                }`}>
+                  <Clock className="w-4 h-4 shrink-0" />
+                  <span>SLA: {getSlaRemaining(complaint.createdAt)}</span>
+                </div>
+              )}
+
+              {/* Conductor action note (shown when action taken) */}
+              {complaint.status === 'forwarded_to_conductor' && complaint.timeline?.length > 0 && (() => {
+                const actionEvent = [...complaint.timeline].reverse().find((e) => e.notes);
+                return actionEvent?.notes ? (
+                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-emerald-700">Conductor Action Note</p>
+                    <p className="text-xs text-[#171717] font-medium italic">"{actionEvent.notes}"</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold">Submitted by: {actionEvent.actorName}</p>
+                  </div>
+                ) : null;
+              })()}
+
+              {statusUpdateSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {statusUpdateSuccess}
+                </div>
+              )}
+              {statusUpdateError && (
+                <p className="text-xs text-red-600 font-semibold">{statusUpdateError}</p>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {/* Mark Under Review */}
+                {!['acknowledged', 'forwarded_to_conductor', 'resolved', 'escalated'].includes(complaint.status) && (
+                  <button
+                    onClick={() => handleStatusChange('acknowledged', 'Depot head reviewing case.')}
+                    disabled={isUpdatingStatus}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-300 text-blue-700 text-xs font-bold rounded-full hover:bg-blue-100 transition-all disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Mark Under Review
+                  </button>
+                )}
+
+                {/* Mark Resolved */}
+                <button
+                  onClick={() => {
+                    const note = window.prompt('Resolution note (optional):') || 'Complaint resolved by depot head.';
+                    handleStatusChange('resolved', note);
+                  }}
+                  disabled={isUpdatingStatus}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-bold rounded-full hover:bg-emerald-100 transition-all disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {isUpdatingStatus ? 'Updating...' : 'Mark Resolved ✓'}
+                </button>
+
+                {/* Escalate */}
+                {complaint.status !== 'escalated' && (
+                  <button
+                    onClick={() => {
+                      const reason = window.prompt('Escalation reason:') || 'Unresolved within SLA window.';
+                      handleStatusChange('escalated', reason);
+                    }}
+                    disabled={isUpdatingStatus}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-300 text-red-700 text-xs font-bold rounded-full hover:bg-red-100 transition-all disabled:opacity-50"
+                  >
+                    <AlertOctagon className="w-3.5 h-3.5" />
+                    Escalate to Admin
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Card: Shift Matching Possible Buses & Conductors */}
           <div className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4">

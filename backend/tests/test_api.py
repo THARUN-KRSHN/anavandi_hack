@@ -229,7 +229,7 @@ def test_complaint_duplicate_request_is_idempotent(client, passenger_token):
         "bus_id": buses[0]["id"],
         "route_id": routes[0]["id"],
         "reported_at": "2026-09-23T09:45:00Z",
-        "client_request_id": "dup-request-001",
+        "client_request_id": f"dup-request-{__import__('uuid').uuid4()}",
     }
 
     first = client.post("/api/complaints", headers={"Authorization": f"Bearer {passenger_token}"}, json=payload)

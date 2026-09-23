@@ -3,7 +3,6 @@ export type ComplaintStatus =
   | 'forwarded_to_conductor'
   | 'acknowledged'
   | 'resolved'
-  // Legacy aliases supported for mock compatibility
   | 'assigned'
   | 'investigating'
   | 'escalated';
@@ -46,6 +45,8 @@ export interface Complaint {
   depotName?: string;
   dutyId?: string;
   conductorPen?: string;
+  conductorName?: string;
+  conductorPhone?: string;
   driverPen?: string;
   status: ComplaintStatus;
   priority: ComplaintPriority;
@@ -55,6 +56,7 @@ export interface Complaint {
   evidenceFiles?: string[];
   assignedOwner?: string;
   resolutionNote?: string;
+  shiftSchedule?: string;
   userLat?: number;
   userLng?: number;
 }

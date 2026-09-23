@@ -5,13 +5,16 @@ import { CrewCard } from '../../components/crew/CrewCard';
 import { Input } from '../../components/ui/Input';
 import { Search, ShieldCheck } from 'lucide-react';
 
+import { useAuth } from '../../context/AuthContext';
+
 export const DepotCrewDirectory: React.FC = () => {
+  const { user } = useAuth();
   const [crewList, setCrewList] = useState<CrewMember[]>([]);
   const [searchPEN, setSearchPEN] = useState('');
 
   useEffect(() => {
-    fetchCrewMembers('DEP-TVM').then(setCrewList);
-  }, []);
+    fetchCrewMembers(user?.depotId).then(setCrewList);
+  }, [user?.depotId]);
 
   const filtered = crewList.filter(
     (c) =>

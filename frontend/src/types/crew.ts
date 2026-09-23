@@ -17,21 +17,22 @@ export interface CrewMember {
 
 export interface DutyRoster {
   id: string; // e.g. D-104
-  date: string;
-  shift: 'morning' | 'evening' | 'night';
+  date?: string;
+  dutyDate?: string;
+  shift?: 'morning' | 'evening' | 'night' | string;
   busNumber: string;
-  routeId: string;
-  routeName: string;
+  routeId?: string;
+  routeName?: string;
   routeCode?: string;
-  depotId: string;
-  conductorPen: string;
-  conductorName: string;
+  depotId?: string;
+  conductorPen?: string;
+  conductorName?: string;
   conductorPhone?: string;
-  driverPen: string;
-  driverName: string;
+  driverPen?: string;
+  driverName?: string;
   driverPhone?: string;
-  startTime: string; // e.g. 06:00
-  endTime: string;   // e.g. 14:00
+  startTime?: string; // e.g. 06:00
+  endTime?: string;   // e.g. 14:00
   shiftSchedule?: string;
-  status: 'scheduled' | 'on_duty' | 'completed';
+  status?: 'scheduled' | 'on_duty' | 'completed' | string;
 }

@@ -16,13 +16,23 @@ import {
   Bus,
   Clock,
 } from 'lucide-react';
-import { COMPLAINT_CATEGORIES } from '../../data/mock/categories';
+const COMPLAINT_CATEGORIES = [
+  { id: 'cleanliness', label: 'Cleanliness' },
+  { id: 'conductor_staff', label: 'Conductor / Staff' },
+  { id: 'driver', label: 'Driver / Speed' },
+  { id: 'ticketing', label: 'Ticketing' },
+  { id: 'overcrowding', label: 'Overcrowding' },
+  { id: 'bus_condition', label: 'Bus Condition' },
+  { id: 'safety', label: 'Safety' },
+  { id: 'route_timing', label: 'Route / Timing' },
+  { id: 'other', label: 'Other' },
+];
 
 export const DepotDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const depotId = user?.depotId || 'DEP-EKM';
-  const depotName = user?.depotName || 'Ernakulam Central Depot';
+  const depotId = user?.depotId;
+  const depotName = user?.depotName || 'Depot Headquarters';
 
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);

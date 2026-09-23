@@ -19,7 +19,7 @@ export const RoleSwitcherBar: React.FC<{ onStartDemoFlow?: () => void }> = ({ on
     <div className="bg-[#171717] text-white py-2 px-4 border-b border-gray-800 text-xs">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="font-bold tracking-wider text-red-500 uppercase">ANAVANDI</span>
+          <span className="font-bold tracking-wider text-red-500 uppercase">BUS സഹായി</span>
           <span className="text-gray-400 hidden sm:inline">| Demo Role Switcher:</span>
         </div>
 

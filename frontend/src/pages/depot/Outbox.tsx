@@ -5,7 +5,7 @@ import { MessageSquare, Send, ExternalLink, Smartphone } from 'lucide-react';
 
 export const SmsOutboxLogPage: React.FC = () => {
   const { user } = useAuth();
-  const depotId = user?.depotId || 'DEP-EKM';
+  const depotId = user?.depotId;
 
   const [logs, setLogs] = useState<SmsOutboxLog[]>([]);
   const [loading, setLoading] = useState(true);

@@ -233,6 +233,14 @@ def update_complaint_status(complaint_id, new_status, changed_by=None, changed_b
     db.session.add(history)
     db.session.commit()
 
+    if new_status == "UNDER_REVIEW":
+        try:
+            from app.services.email_service import send_user_status_update_email
+            passenger_name = complaint.user.name if complaint.user else "Valued Passenger"
+            send_user_status_update_email(passenger_name, complaint)
+        except Exception as email_err:
+            print(f"[WARN] Email update to user failed: {email_err}")
+
     return complaint, None
 
 

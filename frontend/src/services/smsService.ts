@@ -1,19 +1,22 @@
-import { syncEngine } from './syncEngine';
-import { updateComplaintStatus } from './complaintsService';
+import { apiRequest } from './api';
 
 export interface SmsToken {
   token: string;
   complaintId: string;
   complaintRef: string;
   categoryLabel: string;
+  description?: string;
   busNumber: string;
+  routeFrom?: string;
+  routeTo?: string;
+  incidentTime?: string;
   conductorName: string;
   conductorPhone: string;
   sentAt: string;
   isUsed: boolean;
+  status?: string;
   usedAt?: string;
 }
-
 export interface SmsOutboxLog {
   id: string;
   token: string;
@@ -29,44 +32,6 @@ export interface SmsOutboxLog {
   updateUrl: string;
 }
 
-const TOKENS_STORAGE_KEY = 'anavandi_sms_tokens_v1';
-const OUTBOX_STORAGE_KEY = 'anavandi_sms_outbox_v1';
-
-function getStoredTokens(): Record<string, SmsToken> {
-  try {
-    const data = localStorage.getItem(TOKENS_STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveStoredTokens(tokens: Record<string, SmsToken>) {
-  try {
-    localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-  } catch (err) {
-    console.error('Failed to save SMS tokens:', err);
-  }
-}
-
-function getStoredOutbox(): SmsOutboxLog[] {
-  try {
-    const data = localStorage.getItem(OUTBOX_STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredOutbox(logs: SmsOutboxLog[]) {
-  try {
-    localStorage.setItem(OUTBOX_STORAGE_KEY, JSON.stringify(logs));
-    syncEngine.broadcast('COMPLAINT_UPDATED');
-  } catch (err) {
-    console.error('Failed to save SMS outbox:', err);
-  }
-}
-
 export async function sendConductorSms(params: {
   complaintId: string;
   complaintRef: string;
@@ -77,112 +42,99 @@ export async function sendConductorSms(params: {
   depotId: string;
   customMessage?: string;
 }): Promise<{ token: string; outboxLog: SmsOutboxLog }> {
-  // Generate random secure token
-  const token = `tok_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  const origin = window.location.origin;
-  const updateUrl = `${origin}/u/${token}`;
-
-  const messageContent = params.customMessage
-    ? params.customMessage.replace('{token}', token).replace('{origin}', origin)
-    : `ANAVANDI: Complaint ${params.complaintRef} (${params.categoryLabel}) on bus ${params.busNumber}. Update status: ${updateUrl}`;
-
-  const now = new Date().toISOString();
-
-  // Save token entry
-  const tokenEntry: SmsToken = {
+  const result = await apiRequest<any>(`/depot/complaints/${params.complaintId}/notify-conductor`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  const actionUrl = result.action_url as string;
+  const token = actionUrl.split('/').pop() || '';
+  return {
     token,
-    complaintId: params.complaintId,
-    complaintRef: params.complaintRef,
-    categoryLabel: params.categoryLabel,
-    busNumber: params.busNumber,
-    conductorName: params.conductorName,
-    conductorPhone: params.conductorPhone,
-    sentAt: now,
-    isUsed: false,
+    outboxLog: {
+      id: String(Date.now()),
+      token,
+      complaintId: params.complaintId,
+      complaintRef: params.complaintRef,
+      categoryLabel: params.categoryLabel,
+      busNumber: params.busNumber,
+      conductorName: result.conductor?.name || params.conductorName,
+      conductorPhone: result.conductor?.phone || params.conductorPhone,
+      depotId: params.depotId,
+      sentAt: new Date().toISOString(),
+      messageContent: `Complaint ${params.complaintRef} action link sent by backend SMS provider.`,
+      updateUrl: `/u/${token}`,
+    },
   };
-
-  const tokens = getStoredTokens();
-  tokens[token] = tokenEntry;
-  saveStoredTokens(tokens);
-
-  // Save outbox log
-  const outboxLog: SmsOutboxLog = {
-    id: `sms-${Date.now()}`,
-    token,
-    complaintId: params.complaintId,
-    complaintRef: params.complaintRef,
-    categoryLabel: params.categoryLabel,
-    busNumber: params.busNumber,
-    conductorName: params.conductorName,
-    conductorPhone: params.conductorPhone,
-    depotId: params.depotId,
-    sentAt: now,
-    messageContent,
-    updateUrl,
-  };
-
-  const outbox = getStoredOutbox();
-  saveStoredOutbox([outboxLog, ...outbox]);
-
-  // Transition complaint status to "Forwarded to conductor"
-  await updateComplaintStatus(
-    params.complaintId,
-    'forwarded_to_conductor',
-    `SMS notification dispatched to conductor ${params.conductorName} (${params.conductorPhone}).`,
-    'depot_manager',
-    'Depot Head Desk'
-  );
-
-  return { token, outboxLog };
 }
 
-export async function getSmsToken(tokenStr: string): Promise<SmsToken | null> {
-  const tokens = getStoredTokens();
-  return tokens[tokenStr] || null;
+export async function getSmsToken(token: string): Promise<SmsToken | null> {
+  try {
+    const result = await apiRequest<any>(`/conductor/action/${token}`, { headers: {} });
+    return {
+      token,
+      complaintId: String(result.complaint_id || result.reference_number || ''),
+      complaintRef: result.reference_number,
+      categoryLabel: result.category,
+      description: result.description,
+      busNumber: result.bus?.bus_number || '',
+      routeFrom: result.route?.source || '',
+      routeTo: result.route?.destination || '',
+      incidentTime: `${result.reported_date || ''} ${result.reported_time || ''}`.trim(),
+      conductorName: result.conductor_name || '',
+      conductorPhone: '',
+      sentAt: result.reported_date || '',
+      isUsed: result.status === 'RESOLVED' || result.status === 'ACTION_TAKEN',
+      status: result.status,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function submitConductorStatusUpdate(
-  tokenStr: string,
-  status: 'acknowledged' | 'resolved',
+  token: string,
+  status: 'acknowledged' | 'resolved' | 'unable_to_resolve',
   note?: string
 ): Promise<{ success: boolean; message: string }> {
-  const tokens = getStoredTokens();
-  const tokenEntry = tokens[tokenStr];
-
-  if (!tokenEntry) {
-    return { success: false, message: 'Invalid or missing access token.' };
+  const backendStatus =
+    status === 'resolved'
+      ? 'RESOLVED'
+      : status === 'unable_to_resolve'
+      ? 'UNABLE_TO_RESOLVE'
+      : 'UNDER_REVIEW';
+  try {
+    const result = await apiRequest<any>(`/conductor/action/${token}`, {
+      method: 'POST',
+      body: JSON.stringify({ status: backendStatus, comment: note }),
+    });
+    return { success: true, message: result.message || 'Complaint status updated successfully.' };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Unable to update complaint.' };
   }
-
-  if (tokenEntry.isUsed) {
-    return { success: false, message: 'This link has expired.' };
-  }
-
-  const now = new Date().toISOString();
-
-  // Update complaint status
-  await updateComplaintStatus(
-    tokenEntry.complaintId,
-    status,
-    note
-      ? `Conductor (${tokenEntry.conductorName}): ${note}`
-      : `Status updated by conductor ${tokenEntry.conductorName} via SMS link.`,
-    'depot_staff',
-    `Conductor - ${tokenEntry.conductorName}`
-  );
-
-  // Mark token as used
-  tokenEntry.isUsed = true;
-  tokenEntry.usedAt = now;
-  tokens[tokenStr] = tokenEntry;
-  saveStoredTokens(tokens);
-
-  syncEngine.broadcast('COMPLAINT_UPDATED');
-
-  return { success: true, message: 'Complaint status updated successfully.' };
 }
 
-export async function fetchSmsOutbox(depotId?: string): Promise<SmsOutboxLog[]> {
-  const list = getStoredOutbox();
-  if (!depotId || depotId === 'all') return list;
-  return list.filter((item) => item.depotId === depotId);
+export async function fetchSmsOutbox(_depotId?: string): Promise<SmsOutboxLog[]> {
+  try {
+    const rows = await apiRequest<any[]>('/depot/outbox');
+    return rows.map((r) => {
+      const rawUrl = r.updateUrl || '';
+      const token = rawUrl.split('/').pop() || '';
+      return {
+        id: r.id,
+        token,
+        complaintId: r.complaintId,
+        complaintRef: r.complaintRef,
+        categoryLabel: r.categoryLabel,
+        busNumber: r.busNumber,
+        conductorName: r.conductorName,
+        conductorPhone: r.conductorPhone,
+        depotId: r.depotId,
+        sentAt: r.sentAt,
+        messageContent: r.messageContent,
+        updateUrl: token ? `/u/${token}` : rawUrl,
+      };
+    });
+  } catch {
+    return [];
+  }
 }

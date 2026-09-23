@@ -1,25 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import type { Complaint } from '../../types/complaint';
 import { generateComplaintPDF } from '../../utils/pdfExport';
-import { CheckCircle2, Copy, Download, Home, Building2, Search } from 'lucide-react';
+import { downloadComplaintPdfBlob } from '../../services/complaintsService';
+import { CheckCircle2, Copy, Download, Home, Building2, Search, AlertCircle } from 'lucide-react';
 
 export const ComplaintSubmitted: React.FC = () => {
   const location = useLocation();
+  const [downloading, setDownloading] = useState(false);
+  const complaint: Complaint | undefined = location.state?.complaint;
 
-  const complaint: Complaint = location.state?.complaint || {
-    id: 'cmp-10482',
-    reference: 'GRV-10482',
-    category: 'Cleanliness',
-    categoryLabel: 'Cleanliness',
-    description: 'Seats were dusty and AC vents clogged.',
-    busNumber: 'KL-07-AB-1234',
-    routeFrom: 'Ernakulam Kaloor',
-    routeTo: 'Thrissur Kokkala',
-    depotName: 'Ernakulam Central Depot',
-    status: 'submitted',
-    priority: 'normal',
-    createdAt: new Date().toISOString(),
+  if (!complaint) {
+    return (
+      <div className="max-w-xl mx-auto py-12 px-4 text-center">
+        <div className="bg-white/95 backdrop-blur-md p-8 rounded-[32px] border border-[#EAECF0] shadow-xl space-y-4">
+          <AlertCircle className="w-12 h-12 text-[#D92D20] mx-auto" />
+          <h2 className="text-xl font-black text-[#171717]">No Recent Complaint Submission Found</h2>
+          <p className="text-xs text-[#667085]">
+            You have not submitted a grievance in this session, or the session has expired.
+          </p>
+          <div className="pt-4 flex justify-center gap-3">
+            <Link to="/report" className="px-6 py-2.5 bg-[#D92D20] text-white font-bold text-xs rounded-full">
+              Register a Grievance
+            </Link>
+            <Link to="/track" className="px-6 py-2.5 bg-gray-100 text-[#171717] font-bold text-xs rounded-full">
+              Track Existing Case
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const blob = await downloadComplaintPdfBlob(complaint.reference);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${complaint.reference}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // Fallback to client-side jsPDF
+      generateComplaintPDF(complaint);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const copyReference = () => {
@@ -66,13 +94,13 @@ export const ComplaintSubmitted: React.FC = () => {
             <span className="text-[#667085] block">In-Charge Depot Desk:</span>
             <div className="font-bold text-sm text-[#171717] flex items-center gap-1.5 mt-0.5">
               <Building2 className="w-4 h-4 text-[#D92D20]" />
-              <span>{complaint.depotName || 'Ernakulam Central Depot'}</span>
+              <span>{complaint.depotName || 'Depot In-Charge Desk'}</span>
             </div>
           </div>
           <div>
             <span className="text-[#667085] block">Vehicle & Route:</span>
             <span className="font-medium text-sm text-[#171717] block mt-0.5">
-              Bus <strong className="font-mono">{complaint.busNumber}</strong> ({complaint.routeFrom} ➔ {complaint.routeTo})
+              Bus <strong className="font-mono">{complaint.busNumber || 'N/A'}</strong> {complaint.routeFrom ? `(${complaint.routeFrom} ➔ ${complaint.routeTo})` : ''}
             </span>
           </div>
         </div>
@@ -80,11 +108,12 @@ export const ComplaintSubmitted: React.FC = () => {
         {/* PDF Export Button */}
         <div className="pt-2">
           <button
-            onClick={() => generateComplaintPDF(complaint)}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full shadow-lg transition-all flex items-center justify-center gap-2"
+            onClick={handleDownload}
+            disabled={downloading}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            <span>Download Official PDF Summary (jsPDF)</span>
+            <span>{downloading ? 'Preparing Official PDF...' : 'Download Official PDF Summary'}</span>
           </button>
         </div>
 

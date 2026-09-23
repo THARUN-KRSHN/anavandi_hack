@@ -1,4 +1,5 @@
 export interface Bus {
+  id?: number;
   busNumber: string; // e.g. KL-15-A-4021
   registrationNumber: string;
   depotId: string;

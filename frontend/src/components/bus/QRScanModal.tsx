@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { QrCode, Camera, CheckCircle } from 'lucide-react';
-import { mockBuses } from '../../data/mock/busesData';
+import { fetchBuses } from '../../services/busesService';
+import type { Bus } from '../../types/bus';
 
 interface QRScanModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface QRScanModalProps {
 
 export const QRScanModal: React.FC<QRScanModalProps> = ({ isOpen, onClose, onSelectBus }) => {
   const [scanning, setScanning] = useState(false);
+  const [buses, setBuses] = useState<Bus[]>([]);
+  useEffect(() => { if (isOpen) fetchBuses().then(setBuses).catch(() => undefined); }, [isOpen]);
 
   const handleSimulateScan = (busNum: string) => {
     setScanning(true);
@@ -47,10 +50,10 @@ export const QRScanModal: React.FC<QRScanModalProps> = ({ isOpen, onClose, onSel
 
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs font-semibold text-[#667085] uppercase tracking-wider">
-          <span>Or click a demo bus QR code:</span>
+          <span>Select a bus from the live fleet dataset:</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {mockBuses.slice(0, 4).map((bus) => (
+          {buses.slice(0, 4).map((bus) => (
             <button
               key={bus.busNumber}
               onClick={() => handleSimulateScan(bus.busNumber)}

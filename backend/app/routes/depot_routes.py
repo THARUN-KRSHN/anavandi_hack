@@ -185,3 +185,74 @@ def conductors():
 
     conductor_list = Conductor.query.filter_by(depot_id=depot_id).all()
     return success_response([c.to_dict() for c in conductor_list])
+
+
+@depot_bp.route("/outbox", methods=["GET"])
+@role_required("DEPOT_HEAD")
+def outbox():
+    """GET /api/depot/outbox — list dispatch SMS notifications for this depot."""
+    depot_id = _get_depot_id()
+    if not depot_id:
+        return error_response("NO_DEPOT", "No depot assigned.", 403)
+
+    from app.models import Notification, Complaint, Conductor
+    complaint_ids = [c.id for c in Complaint.query.filter_by(depot_id=depot_id).all()]
+    if not complaint_ids:
+        return success_response([])
+
+    notifications = (
+        Notification.query
+        .filter(Notification.complaint_id.in_(complaint_ids), Notification.channel == "SMS")
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+
+    logs = []
+    for n in notifications:
+        complaint = Complaint.query.get(n.complaint_id)
+        conductor = None
+        if complaint and complaint.action_tokens:
+            latest_token = complaint.action_tokens[-1]
+            conductor = Conductor.query.get(latest_token.conductor_id)
+
+        update_url = ""
+        for line in (n.message or "").split("\n"):
+            if "http" in line and "/action/" in line:
+                update_url = line.strip().split()[-1]
+
+        logs.append({
+            "id": str(n.id),
+            "complaintId": str(complaint.id) if complaint else "",
+            "complaintRef": complaint.reference_number if complaint else "",
+            "categoryLabel": complaint.category if complaint else "",
+            "busNumber": complaint.bus.bus_number if (complaint and complaint.bus) else "",
+            "conductorName": conductor.name if conductor else "Duty Conductor",
+            "conductorPhone": conductor.phone if conductor else "",
+            "depotId": str(depot_id),
+            "sentAt": n.sent_at.isoformat() if n.sent_at else (n.created_at.isoformat() if n.created_at else ""),
+            "messageContent": n.message,
+            "updateUrl": update_url,
+            "status": n.status,
+        })
+    return success_response(logs)
+
+
+@depot_bp.route("/duty-assignments", methods=["GET"])
+@role_required("DEPOT_HEAD")
+def duty_assignments():
+    """GET /api/depot/duty-assignments — list duty assignments for this depot."""
+    depot_id = _get_depot_id()
+    if not depot_id:
+        return error_response("NO_DEPOT", "No depot assigned.", 403)
+
+    from app.models.assignment import DutyAssignment
+    assignments = DutyAssignment.query.filter_by(depot_id=depot_id).order_by(DutyAssignment.duty_date.desc()).all()
+    return success_response([{
+        **a.to_dict(),
+        "bus_number": a.bus.bus_number if a.bus else "",
+        "route_code": a.route.route_code if a.route else "",
+        "conductor_name": a.conductor.name if a.conductor else "",
+        "conductor_pen": a.conductor.pen if a.conductor else "",
+        "conductor_phone": a.conductor.phone if a.conductor else "",
+    } for a in assignments])
+

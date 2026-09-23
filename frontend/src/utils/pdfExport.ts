@@ -12,7 +12,7 @@ export function generateComplaintPDF(complaint: Complaint) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('ANAVANDI - Public Transport Grievance Record', 14, 18);
+  doc.text('BUS സഹായി - Public Transport Grievance Record', 14, 18);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -107,8 +107,8 @@ export function generateComplaintPDF(complaint: Complaint) {
   // Footer Disclaimer
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text('ANAVANDI Public Transport Governance Platform - Official Document', 14, 285);
+  doc.text('BUS സഹായി Public Transport Governance Platform - Official Document', 14, 285);
 
   // Save File
-  doc.save(`ANAVANDI_${complaint.reference}.pdf`);
+  doc.save(`BUS_SAHAYI_${complaint.reference}.pdf`);
 }

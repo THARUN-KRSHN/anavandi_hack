@@ -1,11 +1,28 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { PassengerDashboard } from './PassengerDashboard';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ThreeScene } from '../../components/three/ThreeScene';
 import { FileText, Search, ShieldCheck, Bus, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const Home: React.FC = () => {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+
+  // Role-based landing redirects for logged-in staff/passengers
+  if (user?.role === 'user') {
+    return <PassengerDashboard />;
+  }
+  if (user?.role === 'depot_head') {
+    return <Navigate to="/depot" replace />;
+  }
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   return (
     <div className="space-y-12 pb-12">
       {/* Hero Section */}
@@ -16,7 +33,7 @@ export const Home: React.FC = () => {
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100/60 text-[#D92D20] text-xs font-semibold border border-red-200">
               <ShieldCheck className="w-4 h-4 text-[#D92D20]" />
-              <span>Public Transport Grievance & Accountability</span>
+              <span>{t('appTagline', 'Public Transport Grievance Redressal')}</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black text-[#171717] tracking-tight leading-tight">
@@ -24,7 +41,7 @@ export const Home: React.FC = () => {
             </h1>
 
             <p className="text-base text-[#475467] leading-relaxed max-w-xl">
-              ANAVANDI connects passenger complaints directly to vehicle duty rosters and authorized depot managers. Trace your issue from ticket to resolution.
+              {t('appName', 'BUS സഹായി')} connects passenger complaints directly to vehicle duty rosters and authorized depot managers. Trace your issue from ticket to resolution.
             </p>
 
             {/* Privacy Callout */}
@@ -44,7 +61,7 @@ export const Home: React.FC = () => {
                   icon={<FileText className="w-5 h-5" />}
                   className="w-full sm:w-auto shadow-lg shadow-red-200 text-base"
                 >
-                  Report an Issue
+                  {t('reportComplaint', 'Report an Issue')}
                 </Button>
               </Link>
 
@@ -55,7 +72,7 @@ export const Home: React.FC = () => {
                   icon={<Search className="w-5 h-5" />}
                   className="w-full sm:w-auto"
                 >
-                  Track Complaint
+                  {t('trackComplaint', 'Track Complaint')}
                 </Button>
               </Link>
             </div>
@@ -75,7 +92,7 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl font-extrabold text-[#171717] tracking-tight">
-            How ANAVANDI Works
+            How {t('appName', 'BUS സഹായി')} Works
           </h2>
           <p className="text-sm text-[#667085] mt-1">
             Transparent, traceable, and depot-driven public transport governance
