@@ -17,6 +17,7 @@ from app.routes import (
     notification_bp,
     export_bp,
     bus_bp,
+    ai_bp,
 )
 from app.services.escalation_service import check_escalations
 
@@ -62,6 +63,7 @@ def create_app(config_class=Config):
     app.register_blueprint(notification_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(bus_bp)
+    app.register_blueprint(ai_bp)
 
     # Serve uploaded complaint attachments
     @app.route("/uploads/<path:filename>")

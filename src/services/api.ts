@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 export type ApiUser = {
   id: number;
@@ -58,6 +58,33 @@ export function clearSession() {
   localStorage.removeItem('anavandi_access_token');
   localStorage.removeItem('anavandi_current_user_v2');
   localStorage.removeItem('anavandi_user');
+}
+
+export async function fetchComplaintAiStatus(complaintId: string | number) {
+  return apiRequest<any>(`/ai/status/${complaintId}`).catch(() => null);
+}
+
+export async function runComplaintAiAnalysis(complaintId: string | number) {
+  return apiRequest<any>(`/ai/analyze/${complaintId}`, { method: 'POST' }).catch(() => null);
+}
+
+export async function runDuplicateCheck(complaintId: string | number) {
+  return apiRequest<any>(`/ai/duplicates/${complaintId}`, { method: 'POST' }).catch(() => null);
+}
+
+export async function fetchAiTrends() {
+  return apiRequest<any>(`/ai/trends`).catch(() => null);
+}
+
+export async function fetchAiAnomalies() {
+  return apiRequest<any>(`/ai/anomalies`).catch(() => null);
+}
+
+export async function runDemoAiSimulation(scenario: string) {
+  return apiRequest<any>(`/ai/demo/simulate`, {
+    method: 'POST',
+    body: JSON.stringify({ scenario }),
+  });
 }
 
 export { API_BASE_URL };

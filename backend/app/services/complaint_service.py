@@ -136,6 +136,25 @@ def create_complaint(data, user, image_files=None, upload_folder=None):
         metadata={"reference_number": reference_number},
     )
 
+    # 11. Trigger background AI analysis (asynchronous, non-blocking)
+    try:
+        from threading import Thread
+        from flask import current_app
+
+        def _bg_ai_task(app_ctx, comp_id):
+            with app_ctx:
+                try:
+                    from app.services.ai_service import analyze_complaint, detect_duplicates_for_complaint
+                    analyze_complaint(comp_id)
+                    detect_duplicates_for_complaint(comp_id)
+                except Exception as ai_err:
+                    print(f"[WARN] Background AI task notice: {ai_err}")
+
+        app_obj = current_app._get_current_object()
+        Thread(target=_bg_ai_task, args=(app_obj.app_context(), complaint.id), daemon=True).start()
+    except Exception as thread_err:
+        print(f"[WARN] Failed to launch background AI thread: {thread_err}")
+
     return complaint, None
 
 

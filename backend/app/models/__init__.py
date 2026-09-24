@@ -11,6 +11,7 @@ from app.models.complaint_history import ComplaintHistory
 from app.models.action_token import ActionToken
 from app.models.notification import Notification
 from app.models.activity_log import ActivityLog
+from app.models.ai_analysis import AIAnalysis
 
 __all__ = [
     "User",
@@ -26,6 +27,7 @@ __all__ = [
     "ActionToken",
     "Notification",
     "ActivityLog",
+    "AIAnalysis",
     "COMPLAINT_CATEGORIES",
     "COMPLAINT_STATUSES",
 ]

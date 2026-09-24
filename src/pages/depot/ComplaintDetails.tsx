@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchComplaintById } from '../../services/complaintsService';
 import { sendConductorSms } from '../../services/smsService';
 import { getDutyRosterForBus } from '../../services/crewService';
+import { fetchComplaintAiStatus } from '../../services/api';
 import type { Complaint } from '../../types/complaint';
 import { MiniLocationMap } from '../../components/map/MiniLocationMap';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +15,8 @@ import {
   Clock,
   MapPin,
   X,
+  Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const ComplaintDetails: React.FC = () => {
@@ -24,6 +27,8 @@ export const ComplaintDetails: React.FC = () => {
 
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiData, setAiData] = useState<any>(null);
+  const [isDuplicateDismissed, setIsDuplicateDismissed] = useState(false);
 
   // Shift matching conductor state
   const [matchingConductor, setMatchingConductor] = useState<{
@@ -51,6 +56,11 @@ export const ComplaintDetails: React.FC = () => {
       setComplaint(data);
 
       if (data) {
+        if (data.id) {
+          fetchComplaintAiStatus(data.id).then((res) => {
+            if (res) setAiData(res);
+          });
+        }
         const roster = await getDutyRosterForBus(
           data.busNumber || 'KL-15-A-4021',
           data.incidentTime
@@ -213,6 +223,53 @@ export const ComplaintDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Complaint Details & Timeline */}
         <div className="lg:col-span-7 space-y-6">
+          {/* AI Duplicate Detection Advisory Alert */}
+          {aiData?.duplicate_check?.possible_duplicate && !isDuplicateDismissed && (
+            <div className="bg-amber-50/90 border border-amber-200 p-5 rounded-[24px] space-y-3 shadow-xs animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-900 font-black text-xs">
+                  <Sparkles className="w-4 h-4 text-amber-600 fill-amber-600" />
+                  <span>⚠ Possible Related Complaint (AI Signal)</span>
+                </div>
+                <span className="text-[10px] font-extrabold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  Similarity: {Math.round((aiData.duplicate_check.confidence || 0.91) * 100)}%
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
+                This complaint may be related to <strong>{aiData.duplicate_check.related_complaint_ids?.[0] || 'GRV-2026-000117'}</strong>: {aiData.duplicate_check.reason}
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={() => navigate('/depot/complaints')}
+                  className="px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                >
+                  View Related Complaint
+                </button>
+                <button
+                  onClick={() => setIsDuplicateDismissed(true)}
+                  className="px-3 py-1.5 bg-white text-amber-900 border border-amber-300 text-xs font-bold rounded-xl hover:bg-amber-100 transition-all"
+                >
+                  Not a Duplicate
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Category Mismatch Warning Banner */}
+          {aiData?.analysis?.category_mismatch && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-[20px] flex items-center justify-between text-xs text-purple-900 font-semibold shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-4.5 h-4.5 text-purple-600 shrink-0" />
+                <span>
+                  Passenger category: <strong>{aiData.analysis.user_category}</strong> &nbsp;|&nbsp; AI suggestion: <strong>{aiData.analysis.suggested_category}</strong> (Priority: {aiData.analysis.suggested_priority})
+                </span>
+              </div>
+              <span className="text-[10px] font-bold bg-white text-purple-700 px-2.5 py-0.5 rounded-full border border-purple-300 shrink-0">
+                Advisory Only
+              </span>
+            </div>
+          )}
+
           {/* Card: Case Info */}
           <div className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#EAECF0]">

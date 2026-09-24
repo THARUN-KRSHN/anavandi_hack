@@ -9,6 +9,7 @@ from app.routes.admin_routes import admin_bp
 from app.routes.notification_routes import notification_bp
 from app.routes.export_routes import export_bp
 from app.routes.bus_routes import bus_bp
+from app.routes.ai_routes import ai_bp
 
 __all__ = [
     "auth_bp",
@@ -20,4 +21,5 @@ __all__ = [
     "notification_bp",
     "export_bp",
     "bus_bp",
+    "ai_bp",
 ]

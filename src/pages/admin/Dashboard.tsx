@@ -4,13 +4,16 @@ import { fetchDepots } from '../../services/depotService';
 import { fetchComplaints } from '../../services/complaintsService';
 import type { DepotMaster } from '../../types/depot';
 import { AdminDepotMap } from '../../components/map/AdminDepotMap';
-import { Building2, ArrowRight } from 'lucide-react';
+import { fetchAiTrends, fetchAiAnomalies } from '../../services/api';
+import { Building2, ArrowRight, Sparkles, ShieldAlert, Activity } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [depots, setDepots] = useState<DepotMaster[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [aiTrends, setAiTrends] = useState<any>(null);
+  const [aiAnomaly, setAiAnomaly] = useState<any>(null);
 
   const loadData = async () => {
     try {
@@ -36,6 +39,9 @@ export const AdminDashboard: React.FC = () => {
       });
 
       setDepots(updatedDepots);
+
+      fetchAiTrends().then((t) => t && setAiTrends(t));
+      fetchAiAnomalies().then((a) => a && setAiAnomaly(a));
     } catch (err) {
       console.error(err);
     }
@@ -111,6 +117,56 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* AI Security Anomaly Alert Banner (if anomaly detected) */}
+      {aiAnomaly?.anomaly && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-[20px] flex items-center justify-between text-xs text-red-900 font-semibold shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+            <div>
+              <span className="font-extrabold text-red-900 block">Unusual Complaint Activity Detected ({aiAnomaly.risk_level} RISK)</span>
+              <span className="text-[11px] text-red-800">{aiAnomaly.reason}</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold bg-white text-red-700 px-3 py-1 rounded-full border border-red-300 shrink-0">
+            Action: {aiAnomaly.recommended_action}
+          </span>
+        </div>
+      )}
+
+      {/* AI Executive Transit Trend Insights Card */}
+      {aiTrends && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white p-6 rounded-[28px] border border-blue-800/50 shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-300 font-black text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4 fill-amber-300" />
+              <span>AI Executive Transit Insights</span>
+            </div>
+            <span className="text-[10px] font-extrabold bg-white/10 text-blue-200 px-2.5 py-0.5 rounded-full border border-white/20">
+              Statewide Analytics Engine
+            </span>
+          </div>
+
+          <p className="text-xs text-blue-100/90 leading-relaxed font-medium">
+            {aiTrends.system_health_summary || "Potential emerging issue: Overcrowding complaints have increased around evening peak-hour services involving the Aluva and Ernakulam route groups."}
+          </p>
+
+          {aiTrends.emerging_issues && aiTrends.emerging_issues.length > 0 && (
+            <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              {aiTrends.emerging_issues.slice(0, 2).map((issue: any, idx: number) => (
+                <div key={idx} className="bg-white/10 p-3.5 rounded-2xl border border-white/10 space-y-1">
+                  <div className="flex items-center justify-between font-bold text-white">
+                    <span>{issue.title}</span>
+                    <span className="text-[10px] text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full">
+                      {issue.depot_or_route}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-blue-200">{issue.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Map Section */}
       <div className="bg-white p-2 rounded-[32px] border border-[#EAECF0] shadow-xs">

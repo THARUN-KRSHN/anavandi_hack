@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { DynamicDotBackground } from '../components/ui/DynamicDotBackground';
 
+import { AILabDemoConsole } from '../components/demo/AILabDemoConsole';
+
 export const App: React.FC = () => {
   useRealtimeSync();
   const location = useLocation();
@@ -22,6 +24,9 @@ export const App: React.FC = () => {
     <div className="relative min-h-screen bg-gradient-to-b from-[#E2F1E7] via-[#F4F9F5] to-[#E5F3EB] text-[#171717] flex flex-col font-sans overflow-x-hidden">
       {/* Interactive Halftone Dot Background Canvas */}
       <DynamicDotBackground />
+
+      {/* Floating AI & Security Lab Console */}
+      <AILabDemoConsole />
 
       {/* Clean layout for Auth / Conductor update screens */}
       {isAuthPage || isConductorPage ? (
