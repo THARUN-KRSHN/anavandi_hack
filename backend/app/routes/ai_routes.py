@@ -190,4 +190,19 @@ def demo_simulator_endpoint():
             "principle": "Critical authorization links enforced by cryptographic backend tokens, not AI.",
         })
 
+    elif scenario == "trend_detection":
+        return success_response({
+            "scenario": "Network-Wide Executive Transit Trends",
+            "depots_analyzed": ["Aluva Depot", "Ernakulam Depot", "Trivandrum Central", "Kozhikode Depot"],
+            "ai_result": {
+                "top_trend": "Emerging overcrowding trend on Aluva -> Ernakulam corridor during evening peak hours (17:00 - 19:30).",
+                "recommended_action": "Deploy 2 additional fast passenger buses on Aluva route group during peak hours.",
+                "risk_level": "MODERATE",
+                "confidence": 0.91,
+                "provider": "OPENROUTER",
+            },
+            "core_system": "Data aggregated safely from complaint table without altering database records.",
+            "ui_action": "State HQ Dashboard displays Executive Trend Advisory Card.",
+        })
+
     return error_response("INVALID_SCENARIO", f"Unknown scenario: {scenario}", 400)

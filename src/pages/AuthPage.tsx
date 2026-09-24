@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageToggle } from '../components/ui/LanguageToggle';
 import { Shield, User, Building2, Lock, Phone, Mail, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 
 export const AuthPage: React.FC = () => {
   const { user, isAuthenticated, loginUser, loginUserPass, signUpUser, loginStaffMember } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -118,11 +121,16 @@ export const AuthPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative z-10">
-      {/* Spacious, high-contrast, beautiful card with integrated header */}
-      <div className="w-full max-w-xl sm:max-w-2xl bg-white/95 backdrop-blur-xl shadow-2xl shadow-emerald-950/10 rounded-[36px] border border-white/90 p-8 sm:p-12 space-y-8">
+      {/* High-contrast, beautiful card with floating language selector */}
+      <div className="w-full max-w-xl sm:max-w-2xl bg-white/95 backdrop-blur-xl shadow-2xl shadow-emerald-950/10 rounded-[36px] border border-white/90 p-8 sm:p-12 space-y-8 relative">
         
+        {/* Top Floating Language Toggle Pill */}
+        <div className="absolute top-6 right-6 sm:top-8 sm:right-8">
+          <LanguageToggle className="shadow-sm" />
+        </div>
+
         {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex flex-col items-center text-center space-y-4 pt-2">
           <div className="flex items-center justify-center">
             <img
               src="/logo.png"
@@ -133,11 +141,11 @@ export const AuthPage: React.FC = () => {
 
           <div className="space-y-1.5">
             <h1 className="text-3xl sm:text-4xl font-black text-[#171717] tracking-tight leading-tight">
-              Welcome to Bus Sahayi
+              {t('auth.welcome')}
             </h1>
 
             <p className="text-sm sm:text-base text-[#475467] font-medium max-w-md mx-auto">
-              Public Transport Grievance & Depot Accountability Platform
+              {t('auth.subtitle')}
             </p>
           </div>
         </div>
@@ -146,23 +154,23 @@ export const AuthPage: React.FC = () => {
         <div className="grid grid-cols-2 p-1.5 bg-[#F4F6F8] rounded-full border border-[#EAECF0]">
           <button
             onClick={() => { setActiveTab('login'); setError(''); }}
-            className={`py-3 text-sm font-bold rounded-full transition-all ${
+            className={`py-3 text-sm font-bold rounded-full transition-all cursor-pointer ${
               activeTab === 'login'
                 ? 'bg-[#171717] text-white shadow-md'
                 : 'text-[#667085] hover:text-[#171717]'
             }`}
           >
-            Sign In
+            {t('auth.sign_in')}
           </button>
           <button
             onClick={() => { setActiveTab('signup'); setError(''); }}
-            className={`py-3 text-sm font-bold rounded-full transition-all ${
+            className={`py-3 text-sm font-bold rounded-full transition-all cursor-pointer ${
               activeTab === 'signup'
                 ? 'bg-[#171717] text-white shadow-md'
                 : 'text-[#667085] hover:text-[#171717]'
             }`}
           >
-            Sign Up (Passenger)
+            {t('auth.sign_up')}
           </button>
         </div>
 
@@ -176,7 +184,7 @@ export const AuthPage: React.FC = () => {
         {activeTab === 'signup' && (
           <form onSubmit={handleSignUpSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-[#171717]">Full Name *</label>
+              <label className="text-sm font-bold text-[#171717]">{t('auth.full_name')} *</label>
               <div className="relative">
                 <User className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                 <input
@@ -191,7 +199,7 @@ export const AuthPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-[#171717]">Mobile Number *</label>
+              <label className="text-sm font-bold text-[#171717]">{t('auth.mobile_number')} *</label>
               <div className="relative">
                 <Phone className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                 <input
@@ -206,7 +214,7 @@ export const AuthPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-[#171717]">Password *</label>
+              <label className="text-sm font-bold text-[#171717]">{t('auth.password')} *</label>
               <div className="relative">
                 <Lock className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                 <input
@@ -221,7 +229,7 @@ export const AuthPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-[#171717]">Email Address (Optional)</label>
+              <label className="text-sm font-bold text-[#171717]">{t('auth.email_optional')}</label>
               <div className="relative">
                 <Mail className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                 <input
@@ -236,9 +244,9 @@ export const AuthPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Create Passenger Account</span>
+              <span>{t('auth.create_account')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -247,34 +255,34 @@ export const AuthPage: React.FC = () => {
         {/* LOGIN FORM */}
         {activeTab === 'login' && (
           <div className="space-y-6">
-            {/* Role Sub-tabs: User (default), Depot Head, Admin */}
+            {/* Role Sub-tabs: Passenger, Depot Head, Admin */}
             <div className="flex items-center justify-center gap-2 p-1.5 bg-[#F4F6F8] rounded-2xl border border-[#EAECF0]">
               <button
                 type="button"
                 onClick={() => { setLoginRole('user'); setError(''); }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
                   loginRole === 'user' ? 'bg-white text-[#171717] shadow-sm' : 'text-[#667085] hover:text-[#171717]'
                 }`}
               >
-                Passenger
+                {t('auth.passenger')}
               </button>
               <button
                 type="button"
                 onClick={() => { setLoginRole('depot_head'); setError(''); }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
                   loginRole === 'depot_head' ? 'bg-white text-[#D92D20] shadow-sm' : 'text-[#667085] hover:text-[#171717]'
                 }`}
               >
-                Depot Head
+                {t('auth.depot_head')}
               </button>
               <button
                 type="button"
                 onClick={() => { setLoginRole('admin'); setError(''); }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${
+                className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
                   loginRole === 'admin' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-[#667085] hover:text-[#171717]'
                 }`}
               >
-                State Admin
+                {t('auth.admin')}
               </button>
             </div>
 
@@ -286,22 +294,22 @@ export const AuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setPassengerAuthMode('otp'); setError(''); }}
-                    className={passengerAuthMode === 'otp' ? 'text-[#D92D20] font-bold underline' : 'text-gray-500 hover:text-black'}
+                    className={`cursor-pointer ${passengerAuthMode === 'otp' ? 'text-[#D92D20] font-bold underline' : 'text-gray-500 hover:text-black'}`}
                   >
-                    Login via OTP
+                    {t('auth.login_otp')}
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
                     type="button"
                     onClick={() => { setPassengerAuthMode('password'); setError(''); }}
-                    className={passengerAuthMode === 'password' ? 'text-[#D92D20] font-bold underline' : 'text-gray-500 hover:text-black'}
+                    className={`cursor-pointer ${passengerAuthMode === 'password' ? 'text-[#D92D20] font-bold underline' : 'text-gray-500 hover:text-black'}`}
                   >
-                    Login via Password
+                    {t('auth.login_password')}
                   </button>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-[#171717]">Mobile Number</label>
+                  <label className="text-sm font-bold text-[#171717]">{t('auth.mobile_number')}</label>
                   <div className="relative">
                     <Phone className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                     <input
@@ -318,7 +326,7 @@ export const AuthPage: React.FC = () => {
                 {passengerAuthMode === 'password' ? (
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-[#171717]">Password</label>
+                      <label className="text-sm font-bold text-[#171717]">{t('auth.password')}</label>
                       <div className="relative">
                         <Lock className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                         <input
@@ -334,26 +342,26 @@ export const AuthPage: React.FC = () => {
 
                     <button
                       type="submit"
-                      className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Sign In with Password</span>
+                      <span>{t('auth.sign_in')}</span>
                     </button>
                   </div>
                 ) : !otpSent ? (
                   <button
                     type="button"
                     onClick={handleSendOTP}
-                    className="w-full py-3.5 bg-[#171717] hover:bg-black text-white font-bold text-sm rounded-full shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                    className="w-full py-3.5 bg-[#171717] hover:bg-black text-white font-bold text-sm rounded-full shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Send OTP Code</span>
+                    <span>{t('auth.send_otp')}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-sm font-bold text-[#171717]">Enter OTP Code</label>
+                        <label className="text-sm font-bold text-[#171717]">{t('auth.enter_otp')}</label>
                         <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
                           Demo OTP: 123456
                         </span>
@@ -372,7 +380,7 @@ export const AuthPage: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white font-bold text-sm rounded-full shadow-lg shadow-green-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white font-bold text-sm rounded-full shadow-lg shadow-green-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {loading ? (
                         <>
@@ -382,7 +390,7 @@ export const AuthPage: React.FC = () => {
                       ) : (
                         <>
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>Verify & Sign In</span>
+                          <span>{t('auth.verify_signin')}</span>
                         </>
                       )}
                     </button>
@@ -396,7 +404,7 @@ export const AuthPage: React.FC = () => {
               <form onSubmit={handleStaffLogin} className="space-y-5">
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-[#171717]">
-                    {loginRole === 'depot_head' ? 'Depot Account ID' : 'Admin ID'}
+                    {loginRole === 'depot_head' ? t('auth.depot_id') : t('auth.admin_id')}
                   </label>
                   <div className="relative">
                     {loginRole === 'depot_head' ? (
@@ -416,7 +424,7 @@ export const AuthPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-[#171717]">Password</label>
+                  <label className="text-sm font-bold text-[#171717]">{t('auth.password')}</label>
                   <div className="relative">
                     <Lock className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
                     <input
@@ -433,7 +441,7 @@ export const AuthPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] disabled:opacity-50 text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-[#D92D20] hover:bg-[#B42318] disabled:opacity-50 text-white font-bold text-sm rounded-full shadow-lg shadow-red-200 transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? (
                     <>
@@ -442,7 +450,7 @@ export const AuthPage: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>Sign In to {loginRole === 'depot_head' ? 'Depot Head Portal' : 'Admin Governance'}</span>
+                      <span>{t('auth.sign_in')} ({loginRole === 'depot_head' ? t('auth.depot_head') : t('auth.admin')})</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

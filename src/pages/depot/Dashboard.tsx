@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchComplaints } from '../../services/complaintsService';
 import type { Complaint } from '../../types/complaint';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { exportComplaintsToCsv, exportComplaintsToExcel } from '../../utils/exportUtils';
 import {
   Inbox,
@@ -20,6 +21,7 @@ import { COMPLAINT_CATEGORIES } from '../../constants/categories';
 
 export const DepotDashboard: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const depotId = user?.depotId || 'DEP-EKM';
   const depotName = user?.depotName || 'Ernakulam Central Depot';
@@ -35,7 +37,6 @@ export const DepotDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch complaints for this depot
       const list = await fetchComplaints({ depotId });
       setComplaints(list);
     } catch (err) {
@@ -67,18 +68,15 @@ export const DepotDashboard: React.FC = () => {
 
   // Filtered dataset
   const filteredComplaints = complaints.filter((c) => {
-    // Category filter
     if (selectedCategory !== 'all' && c.category !== selectedCategory) {
       return false;
     }
-    // Status filter (solved/unsolved)
     if (statusFilter === 'solved' && c.status !== 'resolved') {
       return false;
     }
     if (statusFilter === 'unsolved' && c.status === 'resolved') {
       return false;
     }
-    // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchRef = c.reference.toLowerCase().includes(q);
@@ -93,31 +91,35 @@ export const DepotDashboard: React.FC = () => {
     return true;
   });
 
+  const getCategoryLabel = (categoryKey: string) => {
+    return t(`cat.${categoryKey}`, categoryKey);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'resolved':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-[#16A34A] border border-green-200">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
+            <CheckCircle2 className="w-3.5 h-3.5" /> {t('status.resolved')}
           </span>
         );
       case 'acknowledged':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Clock className="w-3.5 h-3.5" /> Acknowledged
+            <Clock className="w-3.5 h-3.5" /> {t('status.acknowledged')}
           </span>
         );
       case 'forwarded_to_conductor':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <Bus className="w-3.5 h-3.5" /> Forwarded to Conductor
+            <Bus className="w-3.5 h-3.5" /> {t('status.forwarded_to_conductor')}
           </span>
         );
       case 'submitted':
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-[#D92D20] border border-red-200">
-            <AlertCircle className="w-3.5 h-3.5" /> Submitted
+            <AlertCircle className="w-3.5 h-3.5" /> {t('status.submitted')}
           </span>
         );
     }
@@ -129,28 +131,28 @@ export const DepotDashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#EAECF0]">
         <div>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#667085] block">
-            DEPOT HEAD OPERATIONS DESK
+            {t('depot.desk_tag')}
           </span>
           <h1 className="text-2xl font-black text-[#171717] tracking-tight">
-            {depotName} Reports
+            {depotName} {t('depot.reports_title')}
           </h1>
           <p className="text-xs text-[#667085] mt-0.5">
-            Monitor incoming passenger grievances, dispatch action links to conductors, and maintain depot SLA targets.
+            {t('depot.reports_subtitle')}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => exportComplaintsToCsv(filteredComplaints, `${depotId}_reports.csv`)}
-            className="px-3 py-2 bg-white border border-[#EAECF0] text-[#171717] text-xs font-bold rounded-xl shadow-xs hover:bg-gray-50 flex items-center gap-1.5 transition-all"
+            className="px-3 py-2 bg-white border border-[#EAECF0] text-[#171717] text-xs font-bold rounded-xl shadow-xs hover:bg-gray-50 flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <Download className="w-4 h-4 text-[#667085]" /> Export CSV
+            <Download className="w-4 h-4 text-[#667085]" /> {t('depot.export_csv')}
           </button>
           <button
             onClick={() => exportComplaintsToExcel(filteredComplaints, `${depotId}_reports.xlsx`)}
-            className="px-3 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl shadow-md hover:bg-green-700 flex items-center gap-1.5 transition-all"
+            className="px-3 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl shadow-md hover:bg-green-700 flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <FileSpreadsheet className="w-4 h-4" /> Export Excel
+            <FileSpreadsheet className="w-4 h-4" /> {t('depot.export_excel')}
           </button>
         </div>
       </div>
@@ -161,12 +163,12 @@ export const DepotDashboard: React.FC = () => {
         <div className="bg-white p-5 rounded-[24px] border border-[#EAECF0] shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] block">
-              TOTAL COMPLAINTS
+              {t('depot.total_complaints')}
             </span>
             <span className="text-3xl font-black text-[#171717] mt-1 block">
               {totalCount}
             </span>
-            <span className="text-xs text-[#667085]">Logged for this depot</span>
+            <span className="text-xs text-[#667085]">{t('depot.logged_for_depot')}</span>
           </div>
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-[#171717]">
             <Inbox className="w-6 h-6" />
@@ -177,12 +179,12 @@ export const DepotDashboard: React.FC = () => {
         <div className="bg-white p-5 rounded-[24px] border border-[#EAECF0] shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#D92D20] block">
-              OPEN / UNSOLVED
+              {t('depot.open_unsolved')}
             </span>
             <span className="text-3xl font-black text-[#D92D20] mt-1 block">
               {openCount}
             </span>
-            <span className="text-xs text-[#667085]">Pending conductor resolution</span>
+            <span className="text-xs text-[#667085]">{t('depot.pending_conductor')}</span>
           </div>
           <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-[#D92D20]">
             <AlertCircle className="w-6 h-6" />
@@ -193,12 +195,12 @@ export const DepotDashboard: React.FC = () => {
         <div className="bg-white p-5 rounded-[24px] border border-[#EAECF0] shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#16A34A] block">
-              RESOLVED
+              {t('depot.resolved')}
             </span>
             <span className="text-3xl font-black text-[#16A34A] mt-1 block">
               {resolvedCount}
             </span>
-            <span className="text-xs text-[#667085]">Action completed</span>
+            <span className="text-xs text-[#667085]">{t('depot.action_completed')}</span>
           </div>
           <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-[#16A34A]">
             <CheckCircle2 className="w-6 h-6" />
@@ -214,7 +216,7 @@ export const DepotDashboard: React.FC = () => {
             <Search className="w-4 h-4 text-[#667085] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search reference (GRV-...), bus plate, route, or category..."
+              placeholder={t('depot.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-[#EAECF0] rounded-xl text-xs font-medium text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#D92D20]/20"
@@ -225,33 +227,33 @@ export const DepotDashboard: React.FC = () => {
           <div className="flex items-center gap-1.5 shrink-0 bg-gray-100 p-1 rounded-xl">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === 'all'
                   ? 'bg-white text-[#171717] shadow-xs'
                   : 'text-[#667085] hover:text-[#171717]'
               }`}
             >
-              All Statuses
+              {t('depot.all_statuses')}
             </button>
             <button
               onClick={() => setStatusFilter('unsolved')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === 'unsolved'
                   ? 'bg-[#D92D20] text-white shadow-xs'
                   : 'text-[#667085] hover:text-[#171717]'
               }`}
             >
-              Unsolved ({openCount})
+              {t('depot.unsolved_count')} ({openCount})
             </button>
             <button
               onClick={() => setStatusFilter('solved')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === 'solved'
                   ? 'bg-[#16A34A] text-white shadow-xs'
                   : 'text-[#667085] hover:text-[#171717]'
               }`}
             >
-              Solved ({resolvedCount})
+              {t('depot.solved_count')} ({resolvedCount})
             </button>
           </div>
         </div>
@@ -259,35 +261,35 @@ export const DepotDashboard: React.FC = () => {
         {/* Horizontally scrollable Category Pill Chips */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 pb-1">
           <span className="text-[11px] font-bold text-[#667085] shrink-0 flex items-center gap-1 mr-1">
-            <Filter className="w-3.5 h-3.5" /> Category:
+            <Filter className="w-3.5 h-3.5" /> {t('depot.category')}:
           </span>
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
               selectedCategory === 'all'
                 ? 'bg-[#171717] text-white shadow-xs'
                 : 'bg-gray-100 text-[#667085] hover:bg-gray-200'
             }`}
           >
-            All Categories
+            {t('depot.all_categories')}
           </button>
           {COMPLAINT_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'bg-[#171717] text-white shadow-xs'
                   : 'bg-gray-100 text-[#667085] hover:bg-gray-200'
               }`}
             >
-              {cat.label}
+              {getCategoryLabel(cat.id)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Reports Listing Table (Desktop) / Cards (Mobile) */}
+      {/* Reports Listing Table */}
       <div className="bg-white rounded-[24px] border border-[#EAECF0] shadow-xs overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-[#667085] text-xs font-medium">
@@ -296,8 +298,8 @@ export const DepotDashboard: React.FC = () => {
         ) : filteredComplaints.length === 0 ? (
           <div className="p-12 text-center text-[#667085]">
             <Inbox className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#171717]">No reports found</p>
-            <p className="text-xs text-[#667085] mt-1">Try adjusting your category or status filters.</p>
+            <p className="text-sm font-bold text-[#171717]">{t('depot.no_reports_found')}</p>
+            <p className="text-xs text-[#667085] mt-1">{t('depot.adjust_filters')}</p>
           </div>
         ) : (
           <>
@@ -306,13 +308,13 @@ export const DepotDashboard: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-[#EAECF0] text-[10px] font-extrabold uppercase tracking-wider text-[#667085]">
-                    <th className="py-3.5 px-4">Ref Number</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Bus Plate</th>
-                    <th className="py-3.5 px-4">Route</th>
-                    <th className="py-3.5 px-4">Logged Time</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Action</th>
+                    <th className="py-3.5 px-4">{t('depot.ref_number')}</th>
+                    <th className="py-3.5 px-4">{t('depot.category')}</th>
+                    <th className="py-3.5 px-4">{t('depot.bus_plate')}</th>
+                    <th className="py-3.5 px-4">{t('depot.route')}</th>
+                    <th className="py-3.5 px-4">{t('depot.logged_time')}</th>
+                    <th className="py-3.5 px-4">{t('depot.status')}</th>
+                    <th className="py-3.5 px-4 text-right">{t('depot.action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
@@ -326,7 +328,7 @@ export const DepotDashboard: React.FC = () => {
                         {c.reference}
                       </td>
                       <td className="py-4 px-4 font-semibold text-[#171717]">
-                        {c.categoryLabel || c.category}
+                        {getCategoryLabel(c.category)}
                       </td>
                       <td className="py-4 px-4 font-bold text-[#171717]">
                         {c.busNumber || 'N/A'}
@@ -346,9 +348,9 @@ export const DepotDashboard: React.FC = () => {
                             e.stopPropagation();
                             navigate(`/depot/complaints/${c.id}`);
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-gray-100 text-[#171717] font-bold text-xs hover:bg-[#171717] hover:text-white transition-all inline-flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-xl bg-gray-100 text-[#171717] font-bold text-xs hover:bg-[#171717] hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
                         >
-                          View <ArrowRight className="w-3.5 h-3.5" />
+                          {t('depot.view')} <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -372,7 +374,7 @@ export const DepotDashboard: React.FC = () => {
                     {getStatusBadge(c.status)}
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#171717]">{c.categoryLabel || c.category}</span>
+                    <span className="font-bold text-[#171717]">{getCategoryLabel(c.category)}</span>
                     <span className="font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
                       {c.busNumber}
                     </span>
@@ -380,7 +382,7 @@ export const DepotDashboard: React.FC = () => {
                   <p className="text-xs text-[#667085] line-clamp-2">{c.description}</p>
                   <div className="flex items-center justify-between pt-1 text-[11px] text-[#667085]">
                     <span>{c.routeFrom} ➔ {c.routeTo}</span>
-                    <span className="font-bold text-[#D92D20]">View Details ➔</span>
+                    <span className="font-bold text-[#D92D20]">{t('depot.view')} ➔</span>
                   </div>
                 </div>
               ))}

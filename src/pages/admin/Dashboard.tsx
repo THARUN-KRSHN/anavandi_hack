@@ -5,7 +5,7 @@ import { fetchComplaints } from '../../services/complaintsService';
 import type { DepotMaster } from '../../types/depot';
 import { AdminDepotMap } from '../../components/map/AdminDepotMap';
 import { fetchAiTrends, fetchAiAnomalies } from '../../services/api';
-import { Building2, ArrowRight, Sparkles, ShieldAlert, Activity } from 'lucide-react';
+import { Building2, ArrowRight, Sparkles, ShieldAlert } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();

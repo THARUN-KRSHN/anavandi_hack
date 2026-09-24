@@ -16,7 +16,6 @@ import {
   MapPin,
   X,
   Sparkles,
-  AlertTriangle,
 } from 'lucide-react';
 
 export const ComplaintDetails: React.FC = () => {

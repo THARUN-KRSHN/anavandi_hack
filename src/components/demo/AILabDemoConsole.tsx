@@ -6,7 +6,6 @@ import {
   Zap,
   AlertTriangle,
   X,
-  CheckCircle2,
   Copy,
   Terminal,
   Activity,
