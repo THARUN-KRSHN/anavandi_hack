@@ -7,11 +7,14 @@ import {
   AlertTriangle,
   X,
   Copy,
-  Terminal,
   Activity,
   Cpu,
   RefreshCw,
+  Ticket,
+  Terminal,
 } from 'lucide-react';
+
+
 
 export const AILabDemoConsole: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -183,9 +186,26 @@ export const AILabDemoConsole: React.FC = () => {
                       State HQ multi-depot trend advisory ("Emerging overcrowding trend on Aluva route group").
                     </p>
                   </button>
+
+                  <button
+                    onClick={() => handleRunSimulation('ticket_scanner')}
+                    disabled={!!loadingScenario}
+                    className="p-4 bg-gray-900 border border-gray-800 hover:border-rose-500/50 rounded-2xl text-left space-y-1.5 transition-all group hover:bg-gray-800/80"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-rose-400 group-hover:text-rose-300">
+                        Simulate Ticket / SMS Scanner
+                      </span>
+                      <Ticket className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      Extracts bus registration, stations, time & fare to auto-populate Step 2 and live Leaflet route.
+                    </p>
+                  </button>
                 </div>
               </div>
             )}
+
 
             {/* Tab 2: Security & Auth */}
             {activeTab === 'security' && (

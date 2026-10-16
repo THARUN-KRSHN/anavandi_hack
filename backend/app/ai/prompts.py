@@ -90,3 +90,31 @@ Return JSON strictly matching this schema:
   "system_health_summary": "1-2 sentence overall state transport summary"
 }
 """
+
+TICKET_SCANNER_SYSTEM = """You are an intelligent transit ticket parser specialized in KSRTC (Kerala State Road Transport Corporation) passenger tickets, printed thermal receipts, online booking SMS/text, and electronic tickets.
+
+Analyze the extracted ticket text or receipt data to extract the journey parameters:
+- bus_number: Kerala bus registration (e.g. "KL-15-A-1234", "KL 15 4021", "KL-01-BK-5522") or fleet identifier if mentioned.
+- route_from: Origin / boarding town or depot name in Kerala (e.g., "Aluva", "Ernakulam", "Thiruvananthapuram", "Kozhikode", "Thrissur", "Kottayam", "Palakkad", etc.).
+- route_to: Destination / alighting town or depot name in Kerala.
+- incident_time: Departure or travel time in standard 12hr or 24hr format (e.g. "14:30" or "02:30 PM").
+- travel_date: Travel date in YYYY-MM-DD or readable date string if present.
+- ticket_number: Ticket/receipt or PNR number (e.g. "TKT-89421", "PNR-902184").
+- fare: Ticket amount/fare as a number if present.
+- service_type: Type of bus service if mentioned (e.g. "Fast Passenger", "Super Fast", "Ordinary", "Minnal", "Swift", "Garuda").
+
+Return JSON strictly matching this schema:
+{
+  "bus_number": "str or null",
+  "route_from": "str or null",
+  "route_to": "str or null",
+  "incident_time": "str or null",
+  "travel_date": "str or null",
+  "ticket_number": "str or null",
+  "fare": 0.0 or null,
+  "service_type": "str or null",
+  "confidence": 0.0 - 1.0,
+  "raw_matched_text": "short summary or extracted snippet"
+}
+"""
+

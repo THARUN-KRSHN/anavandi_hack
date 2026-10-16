@@ -8,6 +8,9 @@ import { fetchDepots } from '../../services/depotService';
 import type { DepotMaster } from '../../types/depot';
 import { DepotSelectDropdown } from '../../components/ui/DepotSelectDropdown';
 import { MiniLocationMap } from '../../components/map/MiniLocationMap';
+import { TicketScanModal } from '../../components/ticket/TicketScanModal';
+import type { ScannedTicketData } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   FileText,
   CheckCircle2,
@@ -15,17 +18,25 @@ import {
   Upload,
   X,
   Navigation,
+  Ticket,
+  Sparkles,
 } from 'lucide-react';
 
 export const ReportComplaint: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Ticket Scanner Modal State
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [scanToast, setScanToast] = useState<string | null>(null);
 
   // Depots Master Data
   const [depots, setDepots] = useState<DepotMaster[]>([]);
   const [originDepot, setOriginDepot] = useState<DepotMaster | undefined>();
   const [destDepot, setDestDepot] = useState<DepotMaster | undefined>();
+
 
   // Geolocation & Map State (Default Ernakulam location)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number }>({
@@ -124,7 +135,43 @@ export const ReportComplaint: React.FC = () => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleTicketApplied = (scanned: ScannedTicketData) => {
+    if (scanned.bus_number) {
+      setValue('busNumber', scanned.bus_number, { shouldValidate: true, shouldDirty: true });
+    }
+    if (scanned.route_from) {
+      setValue('routeFrom', scanned.route_from, { shouldValidate: true, shouldDirty: true });
+      const foundOrigin = depots.find(
+        (d) =>
+          d.name.toLowerCase() === scanned.route_from?.toLowerCase() ||
+          d.name.toLowerCase().includes(scanned.route_from?.toLowerCase() || '') ||
+          (scanned.route_from?.toLowerCase() || '').includes(d.name.toLowerCase())
+      );
+      if (foundOrigin) setOriginDepot(foundOrigin);
+    }
+    if (scanned.route_to) {
+      setValue('routeTo', scanned.route_to, { shouldValidate: true, shouldDirty: true });
+      const foundDest = depots.find(
+        (d) =>
+          d.name.toLowerCase() === scanned.route_to?.toLowerCase() ||
+          d.name.toLowerCase().includes(scanned.route_to?.toLowerCase() || '') ||
+          (scanned.route_to?.toLowerCase() || '').includes(d.name.toLowerCase())
+      );
+      if (foundDest) setDestDepot(foundDest);
+    }
+    if (scanned.incident_time) {
+      setValue('incidentTime', scanned.incident_time, { shouldValidate: true, shouldDirty: true });
+    }
+    setStep(2);
+    setScanToast(
+      t('ticket.success_applied') ||
+        'Ticket details applied! Bus plate and trip route auto-filled.'
+    );
+    setTimeout(() => setScanToast(null), 5000);
+  };
+
   const onSubmit = async (data: ComplaintFormData) => {
+
     setIsSubmitting(true);
     try {
       const created = await createComplaint({
@@ -198,6 +245,31 @@ export const ReportComplaint: React.FC = () => {
                 </p>
               </div>
 
+              {/* Optional Fast-Track Ticket Scanner */}
+              <div className="p-3.5 bg-gradient-to-r from-red-50 via-rose-50 to-orange-50 rounded-2xl border border-red-200 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-[#D92D20] text-white rounded-xl shadow-xs">
+                    <Ticket className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[#171717] block">
+                      {t('ticket.scan_btn') || 'Have a bus ticket or SMS?'}
+                    </span>
+                    <span className="text-[11px] text-[#667085]">
+                      Auto-fill route, bus plate & time in 1 click using OCR.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTicketModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-[#D92D20] hover:bg-black text-white font-black text-xs rounded-full shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Scan</span>
+                </button>
+              </div>
+
               {errors.category && (
                 <div className="p-3 bg-red-50 text-[#D92D20] text-xs font-semibold rounded-2xl">
                   {errors.category.message}
@@ -254,6 +326,48 @@ export const ReportComplaint: React.FC = () => {
                   Enter bus registration plate and location for live estimated bus position computation.
                 </p>
               </div>
+
+              {/* Scan Toast Feedback */}
+              {scanToast && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-900 font-bold animate-fade-in shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{scanToast}</span>
+                  </div>
+                  <button type="button" onClick={() => setScanToast(null)} className="text-emerald-700 hover:text-black">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Scan Ticket Action Banner */}
+              <div className="p-4 bg-gradient-to-r from-red-50 via-rose-50 to-orange-50 border border-red-200 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-[#D92D20] text-white rounded-2xl shadow-md">
+                    <Ticket className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-[#171717] flex items-center gap-1.5">
+                      <span>{t('ticket.scan_btn') || 'Scan Ticket / Auto-Fill Journey'}</span>
+                      <span className="text-[10px] font-bold bg-[#D92D20] text-white px-2 py-0.5 rounded-full">
+                        OCR + AI
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-[#667085] mt-0.5">
+                      Upload ticket photo, paste booking SMS, or choose demo ticket to auto-fill trip route & bus plate.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTicketModalOpen(true)}
+                  className="w-full sm:w-auto px-4 py-2 bg-[#D92D20] hover:bg-black text-white text-xs font-black rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Scan Ticket</span>
+                </button>
+              </div>
+
 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -465,6 +579,14 @@ export const ReportComplaint: React.FC = () => {
           )}
         </form>
       </div>
+
+      {/* Ticket Scanner OCR & Recognition Modal */}
+      <TicketScanModal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        onApply={handleTicketApplied}
+      />
     </div>
   );
 };
+

@@ -96,15 +96,19 @@ class Config:
     # Data paths
     DEPOT_CSV_PATH = DEFAULT_DEPOT_CSV
 
-    # AI & OpenRouter Configuration
+    # AI, Gemini & OpenRouter Configuration
     AI_ENABLED = os.getenv("AI_ENABLED", "true").lower() == "true"
-    AI_PROVIDER = os.getenv("AI_PROVIDER", "openrouter")
+    AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.8-flash")
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001")
-    AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "8"))
+    OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nex-agi/nex-n2.5-mini:free")
+    AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "12"))
     AI_MAX_RETRIES = int(os.getenv("AI_MAX_RETRIES", "1"))
     AI_FALLBACK_ENABLED = os.getenv("AI_FALLBACK_ENABLED", "true").lower() == "true"
 
     # Demo & Security Simulator Mode
     DEMO_MODE = os.getenv("DEMO_MODE", "true").lower() == "true"
     AI_SIMULATION_MODE = os.getenv("AI_SIMULATION_MODE", "false").lower() == "true"
+

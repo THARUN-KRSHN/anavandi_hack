@@ -8,9 +8,26 @@ from app.services.ai_service import (
     detect_anomalies_for_user,
     detect_network_trends,
     get_latest_ai_analysis,
+    scan_ticket_data,
 )
 
 ai_bp = Blueprint("ai", __name__, url_prefix="/api/ai")
+
+
+@ai_bp.route("/scan-ticket", methods=["POST"])
+def scan_ticket_endpoint():
+    """Scan and extract journey details from ticket text or uploaded receipt."""
+    data = request.get_json() or {}
+    text = data.get("text", "")
+    image_b64 = data.get("image", None)
+    mime_type = data.get("mime_type", "image/jpeg")
+
+    if not text and not image_b64:
+        return error_response("MISSING_DATA", "Please provide ticket text or image.", 400)
+
+    result = scan_ticket_data(ticket_text=text, image_b64=image_b64, mime_type=mime_type)
+    return success_response(result)
+
 
 
 @ai_bp.route("/analyze/<int:complaint_id>", methods=["POST", "GET"])
@@ -23,6 +40,7 @@ def analyze_complaint_endpoint(complaint_id):
 
     result = analyze_complaint(complaint_id)
     return success_response(result)
+
 
 
 @ai_bp.route("/duplicates/<int:complaint_id>", methods=["POST", "GET"])
@@ -205,4 +223,25 @@ def demo_simulator_endpoint():
             "ui_action": "State HQ Dashboard displays Executive Trend Advisory Card.",
         })
 
+    elif scenario == "ticket_scanner":
+        return success_response({
+            "scenario": "Automated Ticket / SMS Journey Recognition",
+            "sample_input": "KSRTC TICKET #T-89412\nFROM: ALUVA TO: THIRUVANANTHAPURAM\nBUS: KL-15-A-4021\nDEP: 14:30\nFARE: Rs. 240",
+            "extracted_journey": {
+                "bus_number": "KL-15-A-4021",
+                "route_from": "Aluva",
+                "route_to": "Thiruvananthapuram",
+                "incident_time": "14:30",
+                "ticket_number": "T-89412",
+                "fare": 240.0,
+                "service_type": "Fast Passenger",
+                "confidence": 0.95,
+                "provider": "GEMINI",
+            },
+
+            "core_system": "Auto-populates passenger grievance form and live Leaflet route geometry.",
+            "ui_action": "Fills Step 2 fields and updates MiniLocationMap route without manual typing.",
+        })
+
     return error_response("INVALID_SCENARIO", f"Unknown scenario: {scenario}", 400)
+

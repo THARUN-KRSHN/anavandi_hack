@@ -87,4 +87,28 @@ export async function runDemoAiSimulation(scenario: string) {
   });
 }
 
+export type ScannedTicketData = {
+  bus_number?: string | null;
+  route_from?: string | null;
+  route_to?: string | null;
+  incident_time?: string | null;
+  travel_date?: string | null;
+  ticket_number?: string | null;
+  fare?: number | null;
+  service_type?: string | null;
+  confidence?: number;
+  raw_matched_text?: string;
+  provider?: string;
+  error_notice?: string;
+};
+
+export async function scanTicketApi(text: string, image?: string, mimeType?: string): Promise<ScannedTicketData> {
+  return apiRequest<ScannedTicketData>('/ai/scan-ticket', {
+    method: 'POST',
+    body: JSON.stringify({ text, image, mime_type: mimeType }),
+  });
+}
+
+
 export { API_BASE_URL };
+

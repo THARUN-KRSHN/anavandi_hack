@@ -108,3 +108,63 @@ def validate_trend_result(data: dict) -> dict | None:
         "emerging_issues": valid_issues,
         "system_health_summary": str(data.get("system_health_summary", "System operations running normally.")),
     }
+
+
+def validate_ticket_scan_result(data: dict) -> dict | None:
+    """Validate ticket scanner extraction response structure."""
+    if not isinstance(data, dict):
+        return None
+
+    import re
+
+    bus_number = data.get("bus_number")
+    if bus_number:
+        bus_number = str(bus_number).strip().upper()
+        # Normalize formats like KL 15 A 1234 or KL15-A-1234 to KL-15-A-1234
+        m = re.match(r'^(KL)[-\s]?(\d{1,2})[-\s]?([A-Z]{1,3})?[-\s]?(\d{1,4})$', bus_number)
+        if m:
+            parts = [m.group(1), m.group(2).zfill(2)]
+            if m.group(3):
+                parts.append(m.group(3))
+            parts.append(m.group(4).zfill(4))
+            bus_number = "-".join(parts)
+
+    route_from = data.get("route_from")
+    if route_from:
+        route_from = str(route_from).strip().title()
+
+    route_to = data.get("route_to")
+    if route_to:
+        route_to = str(route_to).strip().title()
+
+    incident_time = data.get("incident_time")
+    if incident_time:
+        incident_time = str(incident_time).strip()
+
+    ticket_number = data.get("ticket_number")
+    if ticket_number:
+        ticket_number = str(ticket_number).strip().upper()
+
+    fare = None
+    if data.get("fare") is not None:
+        try:
+            fare = round(float(data.get("fare")), 2)
+        except (ValueError, TypeError):
+            fare = None
+
+    confidence = float(data.get("confidence", 0.8))
+    confidence = round(min(max(confidence, 0.0), 1.0), 2)
+
+    return {
+        "bus_number": bus_number or None,
+        "route_from": route_from or None,
+        "route_to": route_to or None,
+        "incident_time": incident_time or None,
+        "travel_date": str(data.get("travel_date")).strip() if data.get("travel_date") else None,
+        "ticket_number": ticket_number or None,
+        "fare": fare,
+        "service_type": str(data.get("service_type")).strip() if data.get("service_type") else None,
+        "confidence": confidence,
+        "raw_matched_text": str(data.get("raw_matched_text", "")),
+    }
+

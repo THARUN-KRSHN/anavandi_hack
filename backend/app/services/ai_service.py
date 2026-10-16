@@ -9,28 +9,59 @@ from flask import current_app
 from app.extensions import db
 from app.models import Complaint, AIAnalysis, ActivityLog, Depot
 from app.ai.openrouter_client import call_openrouter
+from app.ai.gemini_client import call_gemini
 from app.ai.prompts import (
     DUPLICATE_DETECTION_SYSTEM,
     COMPLAINT_ANALYSIS_SYSTEM,
     ANOMALY_DETECTION_SYSTEM,
     TREND_ANALYSIS_SYSTEM,
+    TICKET_SCANNER_SYSTEM,
 )
 from app.ai.schemas import (
     validate_duplicate_result,
     validate_analysis_result,
     validate_anomaly_result,
     validate_trend_result,
+    validate_ticket_scan_result,
 )
 from app.ai.fallback import (
     fallback_duplicate_detection,
     fallback_complaint_analysis,
     fallback_anomaly_detection,
     fallback_trend_analysis,
+    fallback_ticket_scan,
 )
 from app.ai.safeguards import sanitize_input_text
 
 
+def _dispatch_ai_call(system_prompt: str, user_prompt: str, image_b64: str = None, mime_type: str = "image/jpeg"):
+    """Dispatches AI inference to Google Gemini (primary) with fallback to OpenRouter."""
+    cfg = current_app.config if current_app else {}
+    provider = cfg.get("AI_PROVIDER", "gemini").lower()
+
+    if provider == "gemini" or cfg.get("GEMINI_API_KEY"):
+        res_dict, err_code, raw_text, elapsed_ms = call_gemini(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            image_b64=image_b64,
+            mime_type=mime_type,
+        )
+        if not err_code and res_dict:
+            return res_dict, None, raw_text, elapsed_ms, "GEMINI", cfg.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+        # If Gemini fails and OpenRouter is configured, try OpenRouter as secondary
+        if cfg.get("OPENROUTER_API_KEY"):
+            or_dict, or_err, or_text, or_elapsed = call_openrouter(system_prompt, user_prompt)
+            if not or_err and or_dict:
+                return or_dict, None, or_text, or_elapsed, "OPENROUTER", cfg.get("OPENROUTER_MODEL", "nex-agi/nex-n2.5-mini:free")
+        return res_dict, err_code, raw_text, elapsed_ms, "GEMINI", cfg.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+    # Otherwise OpenRouter
+    res_dict, err_code, raw_text, elapsed_ms = call_openrouter(system_prompt, user_prompt)
+    return res_dict, err_code, raw_text, elapsed_ms, "OPENROUTER", cfg.get("OPENROUTER_MODEL", "nex-agi/nex-n2.5-mini:free")
+
+
 def _save_ai_analysis(complaint_id, analysis_type, model, provider, result_dict, confidence, status, error_code, elapsed_ms) -> AIAnalysis:
+
     """Helper to persist AI results into ai_analyses table."""
     analysis = AIAnalysis(
         complaint_id=complaint_id,
@@ -86,20 +117,20 @@ Description: {description}
         )
         return fallback_res
 
-    # Call OpenRouter API
-    res_dict, err_code, raw_text, elapsed_ms = call_openrouter(
+    # Call Gemini (or OpenRouter) API via unified dispatcher
+    res_dict, err_code, raw_text, elapsed_ms, provider_used, model_used = _dispatch_ai_call(
         system_prompt=COMPLAINT_ANALYSIS_SYSTEM,
         user_prompt=user_prompt,
     )
 
     if err_code or not res_dict:
         fallback_res = fallback_complaint_analysis(description, user_category)
-        fallback_res["error_notice"] = f"AI Service error ({err_code}). Core processing unaffected."
+        fallback_res["error_notice"] = f"AI Service notice ({err_code}). Core processing unaffected."
         _save_ai_analysis(
             complaint_id=complaint.id,
             analysis_type="COMPLAINT_ANALYSIS",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=fallback_res.get("confidence"),
             status="FAILED",
@@ -114,8 +145,8 @@ Description: {description}
         _save_ai_analysis(
             complaint_id=complaint.id,
             analysis_type="COMPLAINT_ANALYSIS",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=fallback_res.get("confidence"),
             status="FAILED",
@@ -124,12 +155,12 @@ Description: {description}
         )
         return fallback_res
 
-    validated["provider"] = "OPENROUTER"
+    validated["provider"] = provider_used
     _save_ai_analysis(
         complaint_id=complaint.id,
         analysis_type="COMPLAINT_ANALYSIS",
-        model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-        provider="OPENROUTER",
+        model=model_used,
+        provider=provider_used,
         result_dict=validated,
         confidence=validated.get("confidence"),
         status="COMPLETED",
@@ -137,6 +168,7 @@ Description: {description}
         elapsed_ms=elapsed_ms,
     )
     return validated
+
 
 
 def detect_duplicates_for_complaint(complaint_id: int) -> dict:
@@ -223,7 +255,7 @@ Candidate Recent Complaints:
 {json.dumps(candidates_payload, indent=2)}
 """
 
-    res_dict, err_code, raw_text, elapsed_ms = call_openrouter(
+    res_dict, err_code, raw_text, elapsed_ms, provider_used, model_used = _dispatch_ai_call(
         system_prompt=DUPLICATE_DETECTION_SYSTEM,
         user_prompt=user_prompt,
     )
@@ -234,8 +266,8 @@ Candidate Recent Complaints:
         _save_ai_analysis(
             complaint_id=complaint.id,
             analysis_type="DUPLICATE_DETECTION",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=fallback_res.get("confidence"),
             status="FAILED",
@@ -250,8 +282,8 @@ Candidate Recent Complaints:
         _save_ai_analysis(
             complaint_id=complaint.id,
             analysis_type="DUPLICATE_DETECTION",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=fallback_res.get("confidence"),
             status="FAILED",
@@ -260,12 +292,12 @@ Candidate Recent Complaints:
         )
         return fallback_res
 
-    validated["provider"] = "OPENROUTER"
+    validated["provider"] = provider_used
     _save_ai_analysis(
         complaint_id=complaint.id,
         analysis_type="DUPLICATE_DETECTION",
-        model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-        provider="OPENROUTER",
+        model=model_used,
+        provider=provider_used,
         result_dict=validated,
         confidence=validated.get("confidence"),
         status="COMPLETED",
@@ -273,6 +305,7 @@ Candidate Recent Complaints:
         elapsed_ms=elapsed_ms,
     )
     return validated
+
 
 
 def detect_anomalies_for_user(time_window_minutes: int = 15) -> dict:
@@ -291,7 +324,7 @@ Normal baseline rate: 1-3 complaints per 15 minutes.
 Total complaints in database: {Complaint.query.count()}
 """
 
-    res_dict, err_code, raw_text, elapsed_ms = call_openrouter(
+    res_dict, err_code, raw_text, elapsed_ms, provider_used, model_used = _dispatch_ai_call(
         system_prompt=ANOMALY_DETECTION_SYSTEM,
         user_prompt=user_prompt,
     )
@@ -301,8 +334,8 @@ Total complaints in database: {Complaint.query.count()}
         _save_ai_analysis(
             complaint_id=None,
             analysis_type="ANOMALY_DETECTION",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=0.8,
             status="FAILED",
@@ -315,14 +348,14 @@ Total complaints in database: {Complaint.query.count()}
     if not validated:
         validated = fallback_anomaly_detection(recent_count, time_window_minutes)
 
-    validated["provider"] = "OPENROUTER"
+    validated["provider"] = provider_used
     validated["recent_count_in_window"] = recent_count
 
     _save_ai_analysis(
         complaint_id=None,
         analysis_type="ANOMALY_DETECTION",
-        model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-        provider="OPENROUTER",
+        model=model_used,
+        provider=provider_used,
         result_dict=validated,
         confidence=0.9,
         status="COMPLETED",
@@ -360,7 +393,7 @@ Total State Complaints: {Complaint.query.count()}
 Total Unresolved Complaints: {Complaint.query.filter(Complaint.status != 'RESOLVED').count()}
 """
 
-    res_dict, err_code, raw_text, elapsed_ms = call_openrouter(
+    res_dict, err_code, raw_text, elapsed_ms, provider_used, model_used = _dispatch_ai_call(
         system_prompt=TREND_ANALYSIS_SYSTEM,
         user_prompt=user_prompt,
     )
@@ -370,8 +403,8 @@ Total Unresolved Complaints: {Complaint.query.filter(Complaint.status != 'RESOLV
         _save_ai_analysis(
             complaint_id=None,
             analysis_type="TREND_ANALYSIS",
-            model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-            provider="OPENROUTER",
+            model=model_used,
+            provider=provider_used,
             result_dict=fallback_res,
             confidence=0.8,
             status="FAILED",
@@ -384,12 +417,12 @@ Total Unresolved Complaints: {Complaint.query.filter(Complaint.status != 'RESOLV
     if not validated:
         validated = fallback_trend_analysis(depot_summary)
 
-    validated["provider"] = "OPENROUTER"
+    validated["provider"] = provider_used
     _save_ai_analysis(
         complaint_id=None,
         analysis_type="TREND_ANALYSIS",
-        model=cfg.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-lite-001"),
-        provider="OPENROUTER",
+        model=model_used,
+        provider=provider_used,
         result_dict=validated,
         confidence=0.92,
         status="COMPLETED",
@@ -397,6 +430,7 @@ Total Unresolved Complaints: {Complaint.query.filter(Complaint.status != 'RESOLV
         elapsed_ms=elapsed_ms,
     )
     return validated
+
 
 
 def get_latest_ai_analysis(complaint_id: int, analysis_type: str = None) -> dict | None:
@@ -407,3 +441,74 @@ def get_latest_ai_analysis(complaint_id: int, analysis_type: str = None) -> dict
 
     latest = query.order_by(AIAnalysis.created_at.desc()).first()
     return latest.to_dict() if latest else None
+
+
+def scan_ticket_data(ticket_text: str = "", image_b64: str = None, mime_type: str = "image/jpeg") -> dict:
+    """Scan and parse bus ticket text or raw image into structured journey parameters.
+
+    Extracts: bus_number, route_from, route_to, incident_time, travel_date, ticket_number, fare, service_type.
+    Uses Google Gemini Vision when image_b64 is supplied.
+    """
+    cfg = current_app.config if current_app else {}
+    ai_enabled = cfg.get("AI_ENABLED", True)
+
+    clean_text = sanitize_input_text(ticket_text or "")
+    if not clean_text and not image_b64:
+        return fallback_ticket_scan("")
+
+    # If AI is disabled, immediately use the deterministic regex/depot fallback
+    if not ai_enabled:
+        return fallback_ticket_scan(clean_text)
+
+    if image_b64 and clean_text:
+        user_prompt = f"""KSRTC Passenger Ticket Image with OCR assistance:
+-----------------------------
+OCR Hints: {clean_text}
+-----------------------------
+Carefully analyze the ticket photo and text. Extract all journey parameters into JSON matching the schema."""
+    elif image_b64:
+        user_prompt = "KSRTC Passenger Bus Ticket Image. Analyze the ticket photo and extract all journey parameters into JSON matching the schema."
+    else:
+        user_prompt = f"""KSRTC Passenger Ticket Details:
+-----------------------------
+{clean_text}
+-----------------------------
+Analyze and extract all journey parameters into JSON matching the schema."""
+
+    res_dict, err_code, raw_text, elapsed_ms, provider_used, model_used = _dispatch_ai_call(
+        system_prompt=TICKET_SCANNER_SYSTEM,
+        user_prompt=user_prompt,
+        image_b64=image_b64,
+        mime_type=mime_type,
+    )
+
+    fallback_res = fallback_ticket_scan(clean_text)
+
+    if err_code or not res_dict:
+        fallback_res["error_notice"] = f"AI Service notice ({err_code}). Rule fallback applied."
+        return fallback_res
+
+    validated = validate_ticket_scan_result(res_dict)
+    if not validated:
+        return fallback_res
+
+    # Enhance: If AI missed any core parameter that rule-based fallback detected, merge it
+    if not validated.get("bus_number") and fallback_res.get("bus_number"):
+        validated["bus_number"] = fallback_res["bus_number"]
+    if not validated.get("route_from") and fallback_res.get("route_from"):
+        validated["route_from"] = fallback_res["route_from"]
+    if not validated.get("route_to") and fallback_res.get("route_to"):
+        validated["route_to"] = fallback_res["route_to"]
+    if not validated.get("incident_time") and fallback_res.get("incident_time"):
+        validated["incident_time"] = fallback_res["incident_time"]
+    if not validated.get("ticket_number") and fallback_res.get("ticket_number"):
+        validated["ticket_number"] = fallback_res["ticket_number"]
+    if not validated.get("service_type") and fallback_res.get("service_type"):
+        validated["service_type"] = fallback_res["service_type"]
+    if validated.get("fare") is None and fallback_res.get("fare") is not None:
+        validated["fare"] = fallback_res["fare"]
+
+    validated["provider"] = provider_used
+    return validated
+
+
