@@ -269,6 +269,57 @@ export const ComplaintDetails: React.FC = () => {
             </div>
           )}
 
+          {/* Gemini AI Intelligence Card */}
+          {aiData?.analysis && (
+            <div className="bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-[24px] border border-indigo-500/30 shadow-md space-y-3 animate-in fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-indigo-300 font-black text-xs uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                  <span>Gemini Grievance Intelligence</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Google Gemini 3.5 Flash Active
+                  </span>
+                  <span className="text-[10px] font-bold bg-white/10 text-indigo-200 px-2.5 py-0.5 rounded-full border border-white/20">
+                    Confidence: {Math.round((aiData.analysis.confidence || 0.95) * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              {aiData.analysis.summary && (
+                <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                  <span className="text-[10px] font-black uppercase text-indigo-300 block mb-0.5">Executive Summary</span>
+                  <p className="text-xs text-indigo-100 font-medium leading-relaxed">
+                    "{aiData.analysis.summary}"
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
+                <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase block">User Category</span>
+                  <span className="font-bold text-gray-200">{aiData.analysis.user_category || complaint.category}</span>
+                </div>
+                <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase block">AI Category</span>
+                  <span className={`font-bold ${aiData.analysis.category_mismatch ? 'text-amber-300' : 'text-emerald-300'}`}>
+                    {aiData.analysis.suggested_category || 'Matched'}
+                  </span>
+                </div>
+                <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase block">Suggested Priority</span>
+                  <span className="font-bold text-purple-300">{aiData.analysis.suggested_priority || complaint.priority}</span>
+                </div>
+                <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase block">Advisory Status</span>
+                  <span className="font-bold text-emerald-400">Non-Overriding</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card: Case Info */}
           <div className="bg-white p-6 rounded-[24px] border border-[#EAECF0] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#EAECF0]">

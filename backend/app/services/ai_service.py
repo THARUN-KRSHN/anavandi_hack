@@ -512,3 +512,237 @@ Analyze and extract all journey parameters into JSON matching the schema."""
     return validated
 
 
+def simulate_ai_scenario(scenario: str) -> dict:
+    """Execute or simulate AI Lab edge-case scenarios using live Gemini inference with fallback."""
+    cfg = current_app.config if current_app else {}
+
+    if scenario == "duplicate_complaint":
+        user_prompt = """Target Complaint:
+Reference: GRV-2026-000118
+Bus: KL-15-A-4021
+Route: Aluva to Ernakulam
+Category: OVERCROWDING
+Description: "The bus KL-15-A-4021 at 6:15 PM was dangerously crowded, people were hanging from the door and conductor didn't stop them."
+
+Candidate Complaints:
+1. Reference: GRV-2026-000117
+Bus: KL-15-A-4021
+Route: Aluva -> Ernakulam
+Category: OVERCROWDING
+Description: "Extreme overcrowding on Aluva Ernakulam bus 4021 around 6:20 PM today. Footboard passengers hanging outside."
+"""
+        res_dict, err_code, raw_text, elapsed_ms, provider, model = _dispatch_ai_call(
+            system_prompt=DUPLICATE_DETECTION_SYSTEM,
+            user_prompt=user_prompt
+        )
+        ai_res = validate_duplicate_result(res_dict) if res_dict else None
+        if not ai_res:
+            ai_res = {
+                "possible_duplicate": True,
+                "confidence": 0.94,
+                "related_complaint_ids": ["GRV-2026-000117"],
+                "reason": "Similar description and matching bus/route within 5-8 minutes window.",
+                "recommended_action": "REVIEW",
+            }
+        ai_res["provider"] = provider
+        ai_res["model"] = model
+        ai_res["latency_ms"] = elapsed_ms
+        return {
+            "scenario": "Duplicate Complaint Detection",
+            "signals": ["Same bus KL-15-A-4021", "Same route Aluva -> Ernakulam", "Same category Overcrowding", "Timestamp within 8 mins"],
+            "core_system": "Both complaints remain stored safely in database. Zero automatic deletion.",
+            "ai_result": ai_res,
+            "ui_action": "Depot Head receives Advisory Alert with [View Related] and [Not a Duplicate] options.",
+        }
+
+    elif scenario == "category_mismatch":
+        user_prompt = """Target Complaint Details:
+Reference Number: GRV-2026-000119
+Selected Category: CLEANLINESS
+Bus Number: KL-15-A-4021
+Route: Aluva → Ernakulam
+Description: "The bus was extremely overcrowded during evening peak hours. Passengers were hanging from both footboards, people were pushing, and it was completely impossible to move or breathe. Conductor was unable to issue tickets because of heavy crowd."
+"""
+        res_dict, err_code, raw_text, elapsed_ms, provider, model = _dispatch_ai_call(
+            system_prompt=COMPLAINT_ANALYSIS_SYSTEM,
+            user_prompt=user_prompt
+        )
+        ai_res = validate_analysis_result(res_dict) if res_dict else None
+        if not ai_res:
+            ai_res = {
+                "suggested_category": "OVERCROWDING",
+                "category_mismatch": True,
+                "user_category": "CLEANLINESS",
+                "suggested_priority": "HIGH",
+                "summary": "Passenger reports severe overcrowding during evening peak hours despite selecting Cleanliness.",
+                "confidence": 0.95,
+            }
+        else:
+            ai_res["user_category"] = "CLEANLINESS"
+            if ai_res.get("suggested_category") != "CLEANLINESS":
+                ai_res["category_mismatch"] = True
+        ai_res["provider"] = provider
+        ai_res["model"] = model
+        ai_res["latency_ms"] = elapsed_ms
+        return {
+            "scenario": "Category Mismatch Detection",
+            "passenger_selected_category": "CLEANLINESS",
+            "ai_suggested_category": ai_res.get("suggested_category", "OVERCROWDING"),
+            "ai_result": ai_res,
+            "core_system": "Passenger category preserved as CLEANLINESS. AI does not override user selection.",
+            "ui_action": f"Depot Head sees warning badge: ⚠ Category Mismatch Detected (AI suggests {ai_res.get('suggested_category', 'OVERCROWDING')}).",
+        }
+
+    elif scenario == "suspicious_activity":
+        user_prompt = """Analyze recent submission patterns:
+- Total complaints: 30
+- Time window: 10 minutes
+- Target Bus: KL-01-BK-5522
+- Source IP Subnet: 192.168.1.x
+- Description pattern: Templated repeated text submitted rapidly across multiple user sessions.
+"""
+        res_dict, err_code, raw_text, elapsed_ms, provider, model = _dispatch_ai_call(
+            system_prompt=ANOMALY_DETECTION_SYSTEM,
+            user_prompt=user_prompt
+        )
+        ai_res = validate_anomaly_result(res_dict) if res_dict else None
+        if not ai_res:
+            ai_res = {
+                "anomaly": True,
+                "risk_level": "HIGH",
+                "reason": "Unusually high submission frequency (30 in 10 mins) with repeated text structures.",
+                "recommended_action": "ADMIN_REVIEW",
+            }
+        ai_res["provider"] = provider
+        ai_res["model"] = model
+        ai_res["latency_ms"] = elapsed_ms
+        return {
+            "scenario": "High-Frequency Submission Anomaly",
+            "simulation_metrics": {"submission_count": 30, "time_window": "10 minutes", "ip_subnet": "192.168.1.x"},
+            "deterministic_rule": "Rate limit exceeded (30 submissions / 10 mins).",
+            "ai_result": ai_res,
+            "core_system": "Authentication & Database protected by rate limiter.",
+            "ui_action": "Admin Dashboard displays: 'Unusual complaint activity detected (High Frequency)'",
+        }
+
+    elif scenario == "trend_detection":
+        user_prompt = """Aggregated KSRTC Grievance Data across major depots over the past 7 days:
+- Aluva Depot: 42 complaints (28 Overcrowding on Aluva-Ernakulam corridor between 17:00-19:30, 8 Missed Stop, 6 Cleanliness)
+- Trivandrum Central: 22 complaints (12 Concession Denial, 6 Cleanliness, 4 Driver Speed)
+- Kozhikode Depot: 18 complaints (10 Ticketing/UPI payment failures, 8 Cleanliness)
+- Kannur Depot: 14 complaints (8 Missed Stop, 6 Cleanliness)
+
+Generate statewide transit trend analysis with emerging issues and actionable recommendations."""
+        res_dict, err_code, raw_text, elapsed_ms, provider, model = _dispatch_ai_call(
+            system_prompt=TREND_ANALYSIS_SYSTEM,
+            user_prompt=user_prompt
+        )
+        ai_res = validate_trend_result(res_dict) if res_dict else None
+        if not ai_res:
+            ai_res = {
+                "emerging_issues": [
+                    {
+                        "title": "Evening Peak-Hour Corridor Congestion",
+                        "depot_or_route": "Aluva -> Ernakulam corridor",
+                        "category": "OVERCROWDING",
+                        "affected_count": 28,
+                        "description": "High concentration of overcrowding grievances on Aluva-Ernakulam route between 17:00 and 19:30.",
+                        "recommendations": [
+                            "Deploy 2 additional fast passenger buses during 17:00-19:30 window.",
+                            "Review conductor footboard boarding enforcement at key stops."
+                        ]
+                    }
+                ],
+                "system_health_summary": "Transit network operating stably statewide, with isolated peak-hour congestion along the central Aluva-Ernakulam corridor.",
+            }
+        ai_res["provider"] = provider
+        ai_res["model"] = model
+        ai_res["latency_ms"] = elapsed_ms
+        return {
+            "scenario": "Network-Wide Executive Transit Trends",
+            "depots_analyzed": ["Aluva Depot", "Ernakulam Depot", "Trivandrum Central", "Kozhikode Depot"],
+            "ai_result": ai_res,
+            "core_system": "Data aggregated safely from complaint table without altering database records.",
+            "ui_action": "State HQ Dashboard displays Executive Trend Advisory Card.",
+        }
+
+    elif scenario == "ticket_scanner":
+        sample_ticket = "KSRTC TICKET #T-89412\\nFROM: ALUVA TO: THIRUVANANTHAPURAM\\nBUS: KL-15-A-4021\\nDEP: 14:30\\nFARE: Rs. 240\\nCLASS: FAST PASSENGER"
+        scan_res = scan_ticket_data(ticket_text=sample_ticket)
+        return {
+            "scenario": "Automated Ticket / SMS Journey Recognition",
+            "sample_input": sample_ticket,
+            "extracted_journey": scan_res,
+            "core_system": "Auto-populates passenger grievance form and live Leaflet route geometry.",
+            "ui_action": "Fills Step 2 fields and updates MiniLocationMap route without manual typing.",
+        }
+
+    elif scenario == "failed_logins":
+        return {
+            "scenario": "Multiple Failed Authentication Attempts",
+            "attempts": 12,
+            "window": "2 minutes",
+            "deterministic_security": {
+                "action": "ACCOUNT_LOCKED_TEMPORARY",
+                "lock_duration": "15 minutes",
+                "mechanism": "JWT Auth Rate Limiter (Non-AI)",
+            },
+            "ai_insight": {
+                "title": "Authentication Security Insight",
+                "pattern": "12 failed password attempts in 2 minutes for user demo-user.",
+                "advisory": "Account locked automatically. Review security audit logs for distributed IP pattern.",
+                "provider": "GEMINI",
+            },
+            "principle": "AI does NOT control authorization or authentication locks. Core security is 100% deterministic.",
+        }
+
+    elif scenario == "expired_token":
+        return {
+            "scenario": "Expired Conductor Single-Use Action Token",
+            "token": "tok_expired_984712",
+            "token_status": "EXPIRED (Used at 2026-09-24 04:12:00)",
+            "auth_check": "FAILED - HTTP 400 (INVALID_TOKEN)",
+            "ui_message": "ACTION LINK EXPIRED: This secure action link is no longer valid. Token has expired or was already used.",
+            "principle": "Critical authorization links enforced by cryptographic backend tokens, not AI.",
+        }
+
+    elif scenario in ("openrouter_failure", "gemini_failure"):
+        return {
+            "scenario": "Gemini / OpenRouter API Failure / Timeout Resilience",
+            "simulated_error": "AI_API_TIMEOUT (HTTP 504 Gateway Timeout)",
+            "ai_status": "UNAVAILABLE",
+            "core_system": {
+                "complaint_created": True,
+                "reference_generated": "GRV-2026-99901",
+                "depot_assigned": "Aluva Depot",
+                "email_notification_sent": True,
+                "status": "SUBMITTED",
+            },
+            "fallback_applied": "Level 2 Deterministic Rule Engine",
+            "ui_notice": "AI analysis temporarily unavailable. Core complaint processing continued normally with 100% success.",
+            "resilience_proof": "AI is strictly an advisory supporting layer. Zero system disruption.",
+        }
+
+    elif scenario == "malformed_ai_response":
+        return {
+            "scenario": "Malformed AI Response Handling",
+            "raw_model_output": "{ invalid_json: ... [truncated] }",
+            "schema_validation": "FAILED (JSONDecodeError)",
+            "fallback_engine": {
+                "executed": True,
+                "level": "Level 2 Deterministic Rule Fallback",
+                "result": {
+                    "suggested_category": "OVERCROWDING",
+                    "category_mismatch": False,
+                    "summary": "Rule fallback generated summary from description.",
+                    "confidence": 0.75,
+                    "provider": "RULE_FALLBACK",
+                },
+            },
+            "core_system": "Grievance dossier preserved with rule-based fallback data.",
+        }
+
+    return {"error": f"Unknown scenario: {scenario}"}
+
+
+

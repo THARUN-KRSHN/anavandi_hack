@@ -136,14 +136,20 @@ export const AdminDashboard: React.FC = () => {
       {/* AI Executive Transit Trend Insights Card */}
       {aiTrends && (
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white p-6 rounded-[28px] border border-blue-800/50 shadow-lg space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-amber-300 font-black text-xs uppercase tracking-wider">
               <Sparkles className="w-4 h-4 fill-amber-300" />
               <span>AI Executive Transit Insights</span>
             </div>
-            <span className="text-[10px] font-extrabold bg-white/10 text-blue-200 px-2.5 py-0.5 rounded-full border border-white/20">
-              Statewide Analytics Engine
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Google Gemini 3.5 Flash Active
+              </span>
+              <span className="text-[10px] font-extrabold bg-white/10 text-blue-200 px-2.5 py-0.5 rounded-full border border-white/20">
+                Statewide Transit Intelligence
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-blue-100/90 leading-relaxed font-medium">

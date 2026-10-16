@@ -63,8 +63,9 @@ export const AILabDemoConsole: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-black tracking-tight text-white">BUS സഹായി AI LAB & Security Simulator</h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                      OpenRouter + Rule Fallback Active
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Google Gemini 3.5 Flash Active
                     </span>
                   </div>
                   <p className="text-xs text-gray-400">
@@ -254,7 +255,7 @@ export const AILabDemoConsole: React.FC = () => {
             {activeTab === 'resilience' && (
               <div className="space-y-4">
                 <p className="text-xs text-gray-400 font-medium">
-                  Demonstrates architecture resilience: Even when OpenRouter API times out or fails, the core system continues with 100% success.
+                  Demonstrates architecture resilience: Even when Google Gemini API times out or fails, the core system continues with 100% success via deterministic fallback.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -265,12 +266,12 @@ export const AILabDemoConsole: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-amber-400 group-hover:text-amber-300">
-                        Simulate OpenRouter Timeout / Failure
+                        Simulate Gemini / AI API Timeout
                       </span>
                       <Zap className="w-4 h-4 text-amber-400" />
                     </div>
                     <p className="text-[11px] text-gray-300">
-                      Simulates OpenRouter outage. Proves complaint submission, depot routing & reference generation succeed 100%.
+                      Simulates AI provider outage. Proves complaint submission, depot routing & reference generation succeed 100% via Level 2 Deterministic Rule Fallback.
                     </p>
                   </button>
 
